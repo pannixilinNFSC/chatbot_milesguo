@@ -1,10 +1,11 @@
 # chatbot_milesguo
 
-This is a demo of using RAG + LLM to build a chatbot.   
-written in python jupyter notebook.  
+This is a demonstration of using RAG + LLM to build a chatbot, written in a Python Jupyter Notebook.  
 
-1. download text on Miles Guo's speech
-2. process the text
-3. vectorize sentences by openai sentence-embedding ada 002
-4. build simple vector search index by FAISS
-5. Retrival Augmented Generation (RAG) by calling openai chatgpt-3.5 API. 
+The process involves:  
+
+Downloading text from Miles Guo's speeches.  
+Processing the text.  
+Vectorizing sentences using OpenAI's sentence-embedding model 'ada 002'.  
+Building a simple vector search index with FAISS.  
+Performing Retrival Augmented Generation (RAG) by making calls to the OpenAI ChatGPT-3.5 API.  
