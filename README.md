@@ -2,13 +2,17 @@
 
 This is a demonstration of using RAG + LLM to build a chatbot, written in a Python Jupyter Notebook.  
 
+## Installation:  
+1. install python libraries, pip3 install -r requirements  
+2. register openai API on https://platform.openai.com/   
+3. write your openai API key to "openai_key.txt"  
+4. run jupyter notebook in a terminal  
+## use search only, 10000 call cost $1 on your openai budget
+5. open search.ipynb in browser  
+## use chatbot, 250 call cost $1 on your openai budget
+6. open chatbot.ipynb in browser  
 
-Installation:   
-1. pip3 install -r requirements
-2. write your openai API key to "openai_key.txt"
-3. install and run jupyter notebook
-4. open main.ipynb, and run each cell
-
+   
 The process involves:  
 
 Downloading text from Miles Guo's speeches from https://gwins.org/  
@@ -20,3 +24,4 @@ Performing Retrival Augmented Generation (RAG) by making calls to the OpenAI Cha
 
 ![fig1](./doc/fig1.png)
 ![fig2](./doc/fig2.png)
+
