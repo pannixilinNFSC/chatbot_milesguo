@@ -1,2 +1,5 @@
 openai_key.txt
 .ipynb_checkpoints/
+certificate.pem
+key.pem
+lib/__pycache__

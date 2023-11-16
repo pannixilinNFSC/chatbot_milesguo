@@ -4,3 +4,5 @@ tqdm
 openai==1.2.4
 beautifulsoup4
 langchain
+uvicorn
+fastapi
