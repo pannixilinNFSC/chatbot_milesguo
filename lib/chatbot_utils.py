@@ -8,7 +8,7 @@ def RAG_chatbot(txt_query, openai_client, txts_retrival):
     reference： https://openai.com/pricing#language-models
     """
     prompt = "\n\n".join([f"标题：{title}\n 正文：{txt}" for title, txt in txts_retrival])
-    prompt = f"你需要先摘要并总结参考文本，总结以下问题的答案：{txt_query} 以下是参考文本\n\n{txts_retrival}"
+    prompt = f"你需要先摘要并总结参考文本，总结郭文贵会如何回答以下问题：{txt_query} 以下是参考文本\n\n{txts_retrival}"
     
     response = openai_client.chat.completions.create(model="gpt-3.5-turbo-1106",
       messages=[{"role": "user", "content": prompt}])
