@@ -29,7 +29,7 @@ function handleUserInput() {
 // Custom function to generate a response (replace this with your logic)
 function generateBotResponse(userMessage) {
     // Replace this logic with your actual chat bot logic
-    return "Bot says: Thanks for your message - " + userMessage;
+    return "Bot says: 后端功能正在开发中,  Thanks for your message - " + userMessage;
 }
 
 userInput.addEventListener('keypress', (e) => {
