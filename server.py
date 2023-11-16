@@ -3,14 +3,23 @@ from lib.openai_utils import openai_client
 import lib.search_utils as search_utils
 import lib.chatbot_utils as chatbot_utils
 import uvicorn
+import faiss
+import json
 
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.logger import logger
 
 app = FastAPI()
-embs, dict_emb, faiss_index = search_utils.build_vector_search_index(folder="./emb") # 读取编码文件，构建向量索引
-dict_title = search_utils.load_titles(file="titles.json") # 读取标题文件
+if 0:
+    embs, dict_emb, faiss_index = search_utils.build_vector_search_index(folder="./emb") # 读取编码文件，构建向量索引
+    del embs
+    faiss.write_index(faiss_index, "my_index.index")
+    dict_title = search_utils.load_titles(file="titles.json") # 读取标题文件
+else:
+    faiss_index = faiss.read_index("my_index.index")
+    with open("dict_emb.json", "r") as f:
+        dict_emb = {int(k):v for k, v in json.load(f).items()}
 
 @app.get("/")
 async def root():
