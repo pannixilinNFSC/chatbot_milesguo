@@ -1,6 +1,8 @@
 # chatbot_milesguo
 
 This is a demonstration of using RAG + LLM to build a chatbot, written in a Python Jupyter Notebook.  
+author: pannixilin  
+https://gettr.com/user/pannixilin1  
 
 ## Installation:  
 1. install python libraries, pip3 install -r requirements  
@@ -12,7 +14,7 @@ This is a demonstration of using RAG + LLM to build a chatbot, written in a Pyth
 ## use chatbot, 250 call cost $1 on your openai budget
 6. open chatbot.ipynb in browser  
 
-## Webpage (Alpha)
+## Webpage (Developing)
 
 https://pannixilinnfsc.github.io/chatbot_milesguo/  
 
