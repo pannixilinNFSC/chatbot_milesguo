@@ -12,7 +12,12 @@ This is a demonstration of using RAG + LLM to build a chatbot, written in a Pyth
 ## use chatbot, 250 call cost $1 on your openai budget
 6. open chatbot.ipynb in browser  
 
-   
+## Webpage (Alpha)
+
+https://pannixilinnfsc.github.io/chatbot_milesguo/  
+
+
+
 The process involves:  
 
 Downloading text from Miles Guo's speeches from https://gwins.org/  
@@ -22,6 +27,6 @@ Building a simple vector search index with FAISS.
 Performing Retrival Augmented Generation (RAG) by making calls to the OpenAI ChatGPT-3.5 API.  
 
 
-![fig1](./doc/fig1.png)
-![fig2](./doc/fig2.png)
+![fig1](./docs/fig1.png)
+![fig2](./docs/fig2.png)
 
