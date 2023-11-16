@@ -25,9 +25,12 @@ def decoding_file(file):
 
 def build_faiss_index(embs):
     d = 1536
-    nlist = 100
+    nlist = 100  # 划分的聚类中心数量
+    m = 32  # 每个向量的子编码数量
+    k = 4  # 每个子编码的聚类中心数量
     index = faiss.IndexFlatIP(d) # 普通向量内积暴力检索索引
     #index = faiss.IndexIVFFlat(index, d, nlist) # 倒排索引
+    #index = faiss.IndexIVFPQ(index, d, nlist, m, k)  # 建立IVFPQ索引
     index.train(embs)
     index.add(embs)
     return index
@@ -41,13 +44,22 @@ def build_vector_search_index(folder="./emb"):
     for file in tqdm(files):
         l1 = decoding_file(file)
         for idx, txt, emb in l1:
-            dict_emb[i] = {"idx": idx, "txt": txt, "emb": emb}
+            dict_emb[i] = idx
             embs.append(emb)
             i+=1
     embs = np.vstack(embs)
     embs /= np.linalg.norm(embs, ord=2, axis=-1, keepdims=True) + 1e-8 # L2归一化
     faiss_index = build_faiss_index(embs)
     return embs, dict_emb, faiss_index
+
+def load_text_from_idx(folder="./emb", idx=0):
+    id = idx.split("-")[0]
+    filename = os.path.join(folder, f"{id}.npz")
+    l1 = decoding_file(filename)
+    for idx1, txt, emb in l1:
+        if idx1==idx:
+            return txt
+    return "not found"
 
 def text_search(query, openai_client, faiss_index, dict_emb, dict_title, k=3):
     """ 
@@ -56,7 +68,7 @@ def text_search(query, openai_client, faiss_index, dict_emb, dict_title, k=3):
     在向量索引中检索语音最相近的文档，并找对对应标题。
     """
     if len(query)<10:
-        query = f"这是一个关于{query}的句子"
+        query = f"这是一段关于{query}的演讲"
     #emb_query = get_embedding(query, engine="text-embedding-ada-002")
     response = openai_client.embeddings.create(input=[query], model="text-embedding-ada-002")
     emb_query = json.loads(response.json())["data"][0]["embedding"]
@@ -64,9 +76,9 @@ def text_search(query, openai_client, faiss_index, dict_emb, dict_title, k=3):
     D, I = faiss_index.search(emb_query, k)
     txts = []
     for i in I[0]:
-        idx = dict_emb[i]["idx"]
+        idx = dict_emb[i]
         idx0 = idx.split("-")[0]
-        txt = dict_emb[i]["txt"]
+        txt = load_text_from_idx("./emb", idx)
         title = dict_title[idx0]
         txts += [(title, txt)]
     return txts
