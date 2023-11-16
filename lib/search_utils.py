@@ -44,6 +44,7 @@ def build_vector_search_index(folder="./emb"):
     for file in tqdm(files):
         l1 = decoding_file(file)
         for idx, txt, emb in l1:
+            emb = np.float16(emb)
             dict_emb[i] = idx
             embs.append(emb)
             i+=1
