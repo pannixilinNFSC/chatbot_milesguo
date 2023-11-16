@@ -19,11 +19,17 @@ function handleUserInput() {
     
     displayMessage(userMessage, true);
 
-    // You can add your chat bot logic here to generate a response.
-    // For simplicity, we'll just echo the user's message.
-    displayMessage(userMessage, false);
+    // Call a custom function to generate a response
+    const botResponse = generateBotResponse(userMessage);
+    displayMessage(botResponse, false);
 
     userInput.value = '';
+}
+
+// Custom function to generate a response (replace this with your logic)
+function generateBotResponse(userMessage) {
+    // Replace this logic with your actual chat bot logic
+    return "Bot says: Thanks for your message - " + userMessage;
 }
 
 userInput.addEventListener('keypress', (e) => {

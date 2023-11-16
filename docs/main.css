@@ -1,26 +1,35 @@
 body {
     font-family: Arial, sans-serif;
-    margin: 0; /* 添加此行以去除默认的页面边距 */
+    margin: 0;
+    display: flex; /* 使用 Flex 布局 */
+    flex-direction: column; /* 垂直方向布局 */
+    height: 100vh; /* 使容器充满视口高度 */
 }
 
 .chat-container {
-    width: 66.67%; /* 设置对话框宽度为屏幕宽度的2/3 */
-    max-width: 600px; /* 添加最大宽度以限制宽度 */
+    flex: 1; /* 让聊天容器占据剩余空间 */
+    width: 80%;
     margin: 0 auto;
     border: 1px solid #ccc;
     padding: 10px;
+    display: flex;
+    flex-direction: column; /* 垂直方向布局 */
 }
 
-
-.chat-messages {
-    height: 300px;
-    overflow-y: scroll;
-    border: 1px solid #ccc;
+.user-input-container {
     padding: 10px;
-    margin-bottom: 10px;
+    background-color: #FFD700; /* 黄金色背景 */
 }
 
 .user-input {
     width: 100%;
     padding: 5px;
+}
+
+.chat-messages {
+    flex: 1; /* 让聊天消息占据剩余空间 */
+    overflow-y: scroll;
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-top: 10px; /* 添加上边距来分隔输入框和消息框 */
 }
