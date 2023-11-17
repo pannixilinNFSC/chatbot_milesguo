@@ -3,3 +3,4 @@ openai_key.txt
 certificate.pem
 key.pem
 lib/__pycache__
+*.index
