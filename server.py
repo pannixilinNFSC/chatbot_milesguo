@@ -30,21 +30,27 @@ def search(txt_query: str):
     txts_retrival = search_utils.text_search(txt_query, openai_client, faiss_index, dict_emb, dict_title, k=3) #请求10000次API成本1美金
     return txts_retrival
 
-"""
+
 @app.get("/chatbot")
-def chatbot(txt_query: str):
-    txts_retrival = search_utils.text_search(txt_query, openai_client, faiss_index, dict_emb, dict_title, k=3)
-    txt_response = chatbot_utils.RAG_chatbot(txt_query, openai_client, txts_retrival, 
-                prompt1="你需要全面地摘要并总结a所有参考文本，并总结对以下问题的回答：", 
-                prompt2="以下是参考文本\n\n")
-    txt_all = ""
-    txt_all += txt_response
-    txt_all += "以下是检索得到的原始参考文本"
-    for i, (title, txt) in enumerate(txts_retrival):
-        txt_all += f"{i+1}. {title}"
-        txt_all += txt
-    return txt_all
-"""
+def chatbot(txt_query: str, k:int=3, prompt1:str=None, prompt2:str=None):
+    txts_retrival = search_utils.text_search(txt_query, openai_client, faiss_index, dict_emb, dict_title, k=k)
+    if prompt1 is None:
+        prompt1 = f"""你需要全面地总结和转述参考文本中与给出的话题相关的部分。
+内容尽量丰富，语言生动，充满细节。
+并总结与以下话题有关的内容。话题是："""
+    if prompt2 is None:
+        prompt2 = f"""\n你不能评价其中的内容，并且需要忽略与此话题无关的内容。
+如果内容出现了矛盾和冲突，以时间靠后的内容为准。
+你需要在转述结束后引导用户向你提出进一步这个话题相关的不同问题。如您还可以问我xxx\n
+以下是参考文本\n"""
+    txt_response, txt_prompt = chatbot_utils.RAG_chatbot(txt_query, openai_client, txts_retrival, 
+               prompt1=prompt1, prompt2=prompt2)
+    json2 = [{i+1: f"题目：{title}\n 正文：{txt}" for i, (title, txt) in enumerate(txts_retrival)}]
+    json1 = {"reply": txt_response, 
+             "retrieval": json2, 
+             "prompt": txt_prompt}
+    return json1
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=7711, ssl_keyfile="key.pem", ssl_certfile="certificate.pem")

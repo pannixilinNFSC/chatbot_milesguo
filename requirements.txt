@@ -6,3 +6,5 @@ beautifulsoup4
 langchain
 uvicorn
 fastapi
+umap-learn
+hdbscan
