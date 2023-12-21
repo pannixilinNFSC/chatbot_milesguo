@@ -26,8 +26,8 @@ def version():
     return {"message": "v0.0.1"}
 
 @app.get("/search")
-def search(txt_query: str):
-    txts_retrival = search_utils.text_search(txt_query, openai_client, faiss_index, dict_emb, dict_title, k=3) #请求10000次API成本1美金
+def search(txt_query: str, k:int=3):
+    txts_retrival = search_utils.text_search(txt_query, openai_client, faiss_index, dict_emb, dict_title, k=k) #请求10000次API成本1美金
     return txts_retrival
 
 
