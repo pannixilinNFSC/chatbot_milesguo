@@ -6,3 +6,4 @@ lib/__pycache__
 *.index
 txts/
 emb/
+nohup.out
