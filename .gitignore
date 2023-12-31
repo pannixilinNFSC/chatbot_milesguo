@@ -4,3 +4,5 @@ certificate.pem
 key.pem
 lib/__pycache__
 *.index
+txts/
+emb/
