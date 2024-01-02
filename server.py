@@ -51,4 +51,5 @@ def chatbot(txt_query: str, k:int=3, prompt1:str=None, prompt2:str=None):
     return json1
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=7711, ssl_keyfile="key.pem", ssl_certfile="certificate.pem")
+    #uvicorn.run(app, host="127.0.0.1", port=7711, ssl_keyfile="key.pem", ssl_certfile="certificate.pem")
+    uvicorn.run(app, host="127.0.0.1", port=7711)

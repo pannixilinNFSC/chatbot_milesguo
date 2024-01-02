@@ -28,8 +28,8 @@ async function handleUserInput() {
 
 
 function generateBotResponse(userMessage) {
-  //const url = "https://51.20.60.167:443/search?txt_query=" + encodeURIComponent(userMessage);
-  const url = "https://127.0.0.1:7711/search?txt_query=" + encodeURIComponent(userMessage);
+  //const url = "http://51.20.60.167/search?txt_query=" + encodeURIComponent(userMessage);
+  const url = "http://127.0.0.1:7711/search?txt_query=" + encodeURIComponent(userMessage);
 
   // 使用async/await来处理异步请求
   async function fetchData() {
