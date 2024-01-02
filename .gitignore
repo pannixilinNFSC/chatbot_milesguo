@@ -1,9 +1,12 @@
-openai_key.txt
+**/openai_key.txt
 .ipynb_checkpoints/
 certificate.pem
 key.pem
-lib/__pycache__
+**/__pycache__
 *.index
-txts/
-emb/
-nohup.out
+**/txts/
+**/emb/
+**/nohup.out
+**/dict_emb.json
+**/titles.json
+**/LiuZhongjing-All-In

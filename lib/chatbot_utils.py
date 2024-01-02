@@ -1,4 +1,30 @@
+import os
 import json
+
+class ChatbotClient(object):
+    def __init__(self, work_dir, openai_client):
+        prompt_path = os.path.join(work_dir, "prompt.json")
+        declaration_path = os.path.join(work_dir, "declaration.txt")
+        with open(prompt_path, "r") as f:
+            self.default_prompt = json.load(f)
+        with open(declaration_path, "r") as f:
+            self.declaration = f.read()
+        self.openai_client = openai_client
+            
+    def __call__(self, txt_query, txts_retrival, prompt1=None, prompt2=None):
+        if prompt1 is None:
+            prompt1 = self.default_prompt["prompt1"]
+        if prompt2 is None:
+            prompt2 = self.default_prompt["prompt2"]
+        txt_response, txt_prompt = RAG_chatbot(txt_query, self.openai_client, txts_retrival, 
+                prompt1=prompt1, prompt2=prompt2)
+        json2 = [{i+1: f"题目：{title}\n 正文：{txt}" for i, (title, txt) in enumerate(txts_retrival)}]
+        json1 = {"reply": txt_response, 
+                "retrieval": json2, 
+                "prompt": txt_prompt, 
+                "declaration": self.declaration}
+        json1 = json.dumps(json1, indent=4, ensure_ascii=False)
+        return json1
 
 def RAG_chatbot(txt_query, openai_client, txts_retrival, 
                 prompt1="你需要全面地摘要并总结a所有参考文本，并总结对以下问题的回答：", 
