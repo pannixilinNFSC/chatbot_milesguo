@@ -30,15 +30,12 @@ async function handleUserInput() {
 function generateBotResponse(userMessage) {
   //const url = "http://51.20.60.167/search?txt_query=" + encodeURIComponent(userMessage);
   const url = "http://127.0.0.1:7711/search?txt_query=" + encodeURIComponent(userMessage);
-
   // 使用async/await来处理异步请求
   async function fetchData() {
     try {
       const response = await fetch(url, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: {"Content-Type": "application/json",},
         // 如果你想要忽略SSL证书验证，可以添加以下选项
         // 但这并不安全，只应在特定情况下使用
         "mode": "no-cors"
@@ -46,7 +43,7 @@ function generateBotResponse(userMessage) {
       if (!response.ok) {
         throw new Error("请求失败：" + response.status);
       }
-      const data = await response.text();
+      const data = await response.json();
       return data;
     } catch (error) {
       // 获取响应主体文本，以查看更多错误信息

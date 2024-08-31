@@ -23,15 +23,26 @@ def decoding_file(file):
     l1 = pickle.loads(decompressed_data)
     return l1
 
+def load_text_from_idx(folder="./emb", label=0):
+    file_name = "-".join(label.split("-")[:-1])
+    filename = os.path.join(folder, f"{file_name}.npz")
+    l1 = decoding_file(filename)
+    for label1, txt, emb in l1:
+        if label1==label:
+            return txt
+    return "not found"
+
 def build_faiss_index(embs):
-    d = 1536
+    d = 512
     nlist = 100  # 划分的聚类中心数量
     m = 32  # 每个向量的子编码数量
     k = 4  # 每个子编码的聚类中心数量
+    embs = embs[:,:512]
+    embs /= np.linalg.norm(embs, ord=2, axis=-1, keepdims=True)
     index = faiss.IndexFlatIP(d) # 普通向量内积暴力检索索引
     #index = faiss.IndexIVFFlat(index, d, nlist) # 倒排索引
     #index = faiss.IndexIVFPQ(index, d, nlist, m, k)  # 建立IVFPQ索引
-    index.train(embs)
+    #index.train(embs)
     index.add(embs)
     return index
 
@@ -42,7 +53,7 @@ def build_vector_search_index(folder="./emb"):
     dict_emb = dict()
     global_index = 0
     embs = []
-    for file in tqdm(files):
+    for file in tqdm(sorted(files)):
         l1 = decoding_file(file)
         for label, txt, emb in l1:
             emb = np.float16(emb)
@@ -54,16 +65,7 @@ def build_vector_search_index(folder="./emb"):
     faiss_index = build_faiss_index(embs)
     return embs, dict_emb, faiss_index
 
-def load_text_from_idx(folder="./emb", label=0):
-    file_name = "-".join(label.split("-")[:-1])
-    filename = os.path.join(folder, f"{file_name}.npz")
-    l1 = decoding_file(filename)
-    for label1, txt, emb in l1:
-        if label1==label:
-            return txt
-    return "not found"
-
-def text_search(query, openai_client, faiss_index, dict_emb, dict_title, k=3, work_dir="./"):
+def text_search_emb(query, openai_client, faiss_index, dict_emb, k=3):
     """ 
     用query文本，访问openai sentence embedding ada 002，得到句向量
     每1000个token(250汉字) 0.0001美元
@@ -72,13 +74,17 @@ def text_search(query, openai_client, faiss_index, dict_emb, dict_title, k=3, wo
     if len(query)<10:
         query = f"这是一段关于{query}的演讲"
     #emb_query = get_embedding(query, engine="text-embedding-ada-002")
-    response = openai_client.embeddings.create(input=[query], model="text-embedding-ada-002")
-    emb_query = json.loads(response.json())["data"][0]["embedding"]
-    emb_query = np.array(emb_query).reshape((1, -1))
+    model="text-embedding-3-small"
+    emb_query = openai_client.embeddings.create(input=[query], model=model).data[0].embedding
+    emb_query = np.array(emb_query[:512]).reshape((1, -1))
+    emb_query /= np.linalg.norm(emb_query, ord=2, axis=-1, keepdims=True)
     D, I = faiss_index.search(emb_query, k)
+    labels = [dict_emb[i] for i in I[0]]
+    return labels
+
+def label2texts(labels, dict_title, work_dir="./"):
     txts = []
-    for i in I[0]:
-        label = dict_emb[i]
+    for label in labels:
         file_name = "-".join(label.split("-")[:-1])
         folder = os.path.join(work_dir, "./emb")
         txt = load_text_from_idx(folder, label)
@@ -87,12 +93,12 @@ def text_search(query, openai_client, faiss_index, dict_emb, dict_title, k=3, wo
     return txts
 
 class SearchClient(object):
-    def __init__(self, work_dir, openai_client):
+    def __init__(self, work_dir, openai_client, force_rebuild=False):
         emb_dir = os.path.join(work_dir, "emb")
         title_path = os.path.join(work_dir, "titles.json")
         index_path = os.path.join(work_dir, 'my_index.index')
         dict_emb_path = os.path.join(work_dir, "dict_emb.json")
-        if not os.path.isfile(index_path) or not os.path.isfile(dict_emb_path):
+        if force_rebuild or not os.path.isfile(index_path) or not os.path.isfile(dict_emb_path):
             embs, dict_emb, faiss_index = build_vector_search_index(folder=emb_dir) # 读取编码文件，构建向量索引
             del embs
             faiss.write_index(faiss_index, index_path)
@@ -109,6 +115,13 @@ class SearchClient(object):
         self.openai_client = openai_client
         self.work_dir = work_dir
         
+    def query_label(self, query, k=3):
+        labels = text_search_emb(query, self.openai_client, self.faiss_index, self.dict_emb, k=k)
+        return labels
+        
     def __call__(self, query, k=3):
-        return text_search(query, self.openai_client, self.faiss_index, self.dict_emb, 
-                           self.dict_title, k=k, work_dir=self.work_dir)
+        if len(query)<10:
+            query = f"这是一段关于{query}的文本"
+        labels = self.query_label(query, k)
+        txts = label2texts(labels, self.dict_title, work_dir=self.work_dir)
+        return txts

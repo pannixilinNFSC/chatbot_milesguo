@@ -5,6 +5,7 @@ key.pem
 **/__pycache__
 *.index
 **/txts/
+**/txt/
 **/emb/
 **/nohup.out
 **/dict_emb.json

@@ -37,7 +37,7 @@ def RAG_chatbot(txt_query, openai_client, txts_retrival,
     """
     txts_retrival = "\n\n".join([f"标题：{title}\n 正文：{txt}\n" for title, txt in txts_retrival])
     prompt = f"{prompt1} {txt_query} {prompt2} "
-    response = openai_client.chat.completions.create(model="gpt-3.5-turbo-1106",
+    response = openai_client.chat.completions.create(model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt + txts_retrival}])
     txt_response = json.loads(response.json())["choices"][0]["message"]["content"]
     return txt_response, prompt
