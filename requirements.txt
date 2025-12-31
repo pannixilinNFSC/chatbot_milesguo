@@ -1,0 +1,12 @@
+jupyter
+faiss-cpu
+tqdm
+openai
+beautifulsoup4
+langchain-text-splitters
+python-dotenv
+uvicorn
+fastapi
+umap-learn
+hdbscan
+litellm
