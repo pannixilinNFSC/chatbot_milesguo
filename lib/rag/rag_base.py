@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 class RAGBase:
     def __init__(self, title_index="miles_guo_titles", chunk_index="miles_guo"):
         self.elastic_2steps = Elastic2Steps(title_index, chunk_index)
-        with open("prompt.json", "r") as f:
+        with open("lib/rag/prompt.json", "r") as f:
             self.prompt_base = json.load(f)
         self.prompt_before = self.prompt_base["prompt1"]
         self.prompt_after = self.prompt_base["prompt2"]
@@ -26,12 +26,17 @@ class RAGBase:
         search_results = await self.elastic_2steps.search_2steps(query, title_k, chunk_k)
         return search_results
     
-    async def search(self, query, title_k=3, chunk_k=5, expand_query=True):
+    async def search(self, query:str, 
+                     query_context:list[str]=[], 
+                     title_k:int=3, 
+                     chunk_k:int=5, 
+                     expand_query:bool=True
+        ) -> tuple[list[dict], list[str]]:
         search_results = []
         query_list = [query]
         expanded_query = []
-        if expand_query and len(query) < 5:
-            expanded_query = await self.query_expander.expand(query, k=1)
+        if expand_query:
+            expanded_query = await self.query_expander.expand(query, query_context, k=1)
             logger.info("Expanded Query: %s", expanded_query)
             query_list += expanded_query
             chunk_k = chunk_k // 2
@@ -101,9 +106,15 @@ class RAGBase:
         
         return deduped
     
-    async def chat(self, query, title_k=3, chunk_k=10, expand_query=True):
+    async def chat(self, query:str, 
+                   query_context:list[str]=[], 
+                   title_k:int=3, 
+                   chunk_k:int=10, 
+                   expand_query:bool=True
+    ) -> tuple[str, list[dict], str]:
         search_results, expanded_query = await self.search(
             query, 
+            query_context, 
             title_k=title_k, 
             chunk_k=chunk_k, 
             expand_query=expand_query
@@ -111,13 +122,17 @@ class RAGBase:
         
         search_results_txt = json.dumps(search_results, ensure_ascii=False)
         
-        prompt = f"""{self.prompt_before} {query}
+        prompt = f"""{self.prompt_before} 
+用户本次的话题是：{query} ；
+这是用户之前的问答记录：{query_context} ；
 以下是参考文本:
 {search_results_txt}
 {self.prompt_after}"""
         
         llm_response = await call_llm_with_fallback(prompt, model_name="gpt")
         
+        logger.info("Query Context: %s", "\n".join(query_context))
+        logger.info("Query: %s", query)
         logger.info("LLM Response: %s", textwrap.fill(llm_response, width=50))
         logger.info("Search Results: %s", textwrap.fill(search_results_txt, width=50))
         logger.info("LLM Prompt: %s", textwrap.fill(prompt, width=50))

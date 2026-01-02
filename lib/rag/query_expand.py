@@ -9,14 +9,19 @@ class QueryExpander:
     def __init__(self):
         pass
     
-    async def expand(self, query, k=1):
+    async def expand(self, 
+                     query:str, 
+                     query_context:list[str]=[], 
+                     k:int=1
+    ) -> list[str]:
         prompt = f"""
-        猜测用户的提问意图，并给出一个更具体的查询问句。
+        猜测用户的提问意图，并给出一个更具体的查询问句，15个字以内。
         例如：
         用户提问：如何做好人
         扩展：一个人应具备哪些道德品格，如何加以实践与培养
         扩展：{k}个不同的查询问句
-        以下是用户提问：{query}
+        以下是用户之前的问答记录：{query_context}
+        用户当前提问：{query}
         """
         
         # Define JSON Schema with list length constraints

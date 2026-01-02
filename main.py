@@ -1,7 +1,7 @@
 import os
 import json
 import uvicorn
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Query
 from dotenv import load_dotenv
 from lib.rag.rag_base import RAGBase
 from lib.app_logger import get_logger, setup_logging
@@ -74,6 +74,7 @@ async def search(
 @app.get("/chatbot")
 async def chatbot(
     txt_query: str,
+    query_context: list[str] = Query(default=[]),
     title_k: int = 3,
     chunk_k: int = 10,
     expand_query: bool = True,
@@ -83,6 +84,7 @@ async def chatbot(
     try:
         content, search_results, prompt = await rag_base.chat(
             txt_query, 
+            query_context=query_context,
             title_k=title_k, 
             chunk_k=chunk_k, 
             expand_query=expand_query

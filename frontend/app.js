@@ -281,6 +281,8 @@ function updateComputedUrl() {
 
 let inFlight = null;
 let rateLimitTimer = null;
+// Store conversation history for query_context
+let queryContext = [];
 
 function clearRateLimitTimer() {
   if (rateLimitTimer) {
@@ -336,6 +338,12 @@ async function sendMessage() {
   url.searchParams.set("title_k", String(s.titleK));
   url.searchParams.set("chunk_k", String(s.chunkK));
   url.searchParams.set("expand_query", String(!!s.expandQuery));
+  // Add query_context if available
+  if (queryContext && queryContext.length > 0) {
+    for (const contextItem of queryContext) {
+      url.searchParams.append("query_context", contextItem);
+    }
+  }
 
   const controller = new AbortController();
   inFlight = controller;
@@ -398,6 +406,8 @@ async function sendMessage() {
     const content = data?.content ?? "";
     const sources = Array.isArray(data?.search_results) ? data.search_results : [];
     addMessage({ role: "assistant", text: content, sources, updateBubble: thinkingBubble });
+    // Keep only the last Q&A pair to save costs
+    queryContext = [`用户: ${text}`, `助手: ${content}`];
     setStatus("Done");
   } catch (e) {
     const msg = e?.name === "AbortError" ? "Request cancelled." : String(e?.message || e);
@@ -462,6 +472,7 @@ resetBtn.addEventListener("click", () => {
 clearBtn.addEventListener("click", () => {
   messages.innerHTML = "";
   errorLine.textContent = "";
+  queryContext = [];
   setStatus("Cleared");
   setTimeout(() => setStatus("Idle"), 800);
 });
