@@ -5,11 +5,11 @@ from tqdm import tqdm
 from lib.search.elastic_base import ElasticClientBase
 
 
-class ElasticClientMilesTitles(ElasticClientBase):
+class ElasticClientTitles(ElasticClientBase):
     def __init__(self, 
                  title_index_name="miles_guo_titles",
-                 title_path="./data/titles.json",
-                 summaries_path="./data/summaries.json",
+                 title_path="./data_miles/titles.json",
+                 summaries_path="./data_miles/summaries.json",
                  ):
         super().__init__(title_index_name)
         self.title_path = title_path

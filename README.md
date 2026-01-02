@@ -75,13 +75,24 @@ chatbot_milesguo/
     search/                  # Elasticsearch modules
     data/                    # Data processing modules
   
-  data/                      # Processed data (not in git)
+  data_miles/                # Processed data (not in git)
   archive/                   # Legacy files
 ```
 
 ## Architecture
 
 The system implements a **two-step RAG architecture**. For detailed architecture documentation, see [README_TECH.md](README_TECH.md).
+
+## Advantages vs. Naive RAG
+
+Compared to a naive RAG baseline (search all chunks globally → stuff top-k into the prompt), this system is designed to be more robust on large, noisy Chinese corpora:
+
+- **Higher recall with less noise**: Two-step retrieval (document-level title/summary → chunk-level search within those documents) reduces the search space and helps prevent relevant chunks from being drowned out by global chunk noise.
+- **Better semantic matching without embeddings**: Index-time document expansion (`doc_summary`) and chunk-level contextual descriptions (`context`) are included in Elasticsearch `multi_match` queries, improving matches even when exact keywords are missing from the chunk text.
+- **More stable for short queries**: Optional query expansion for very short inputs improves search coverage and reduces “too vague to retrieve” failures.
+- **Lower token waste**: Deduplication by `doc_id_chunk_id` prevents redundant chunks from being sent to the LLM, reducing prompt size and cost.
+- **Good latency characteristics**: Searches are executed asynchronously in parallel (naive + two-step, across expanded queries), improving end-to-end response time under the same retrieval budget.
+- **Simpler operations**: No embedding model, vector index, or reranker service to run and monitor—only Elasticsearch Serverless plus LLM calls (with model fallback).
 
 ### Technology Stack
 
@@ -110,7 +121,7 @@ https://github.com/pannixilinNFSC/chatbot_milesguo
 
 外部工具：
 本网站调用elastic serverless 作为检索数据库
-本网站调用openai chatgpt-3.5 作为文本生成模型。
+本网站调用openai chatgpt-4o-mini 作为文本生成模型。
 
 免责声明：
 本网站的内容仅供信息和参考之用，不构成法律、医疗、金融或其他专业建议。读者在使用本网站提供的信息时应谨慎，自行承担风险。本网站不对因使用本站内容而引发的任何后果承担责任。

@@ -5,13 +5,13 @@ from lib.search.elastic_base import ElasticClientBase
 
 
 
-class ElasticClientMilesChunks(ElasticClientBase):
+class ElasticClientChunks(ElasticClientBase):
     def __init__(self, 
                  chunk_index_name="miles_guo", 
-                 chunks_path="./data/chunks/",
-                 contexts_path="./data/contexts/",
-                 title_path="./data/titles.json",
-                 summaries_path="./data/summaries.json",
+                 chunks_path="./data_miles/chunks/",
+                 contexts_path="./data_miles/contexts/",
+                 title_path="./data_miles/titles.json",
+                 summaries_path="./data_miles/summaries.json",
                  ):
         super().__init__(chunk_index_name)
         self.chunks_path = chunks_path

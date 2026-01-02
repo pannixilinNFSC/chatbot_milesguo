@@ -1,5 +1,5 @@
-from lib.search.elastic_title_index import ElasticClientMilesTitles
-from lib.search.elastic_chunk_index import ElasticClientMilesChunks
+from lib.search.elastic_title_index import ElasticClientTitles
+from lib.search.elastic_chunk_index import ElasticClientChunks
 
 class Elastic2Steps:
     def __init__(self, 
@@ -8,8 +8,8 @@ class Elastic2Steps:
                  ):
         self.title_index = title_index
         self.chunk_index = chunk_index
-        self.client_title = ElasticClientMilesTitles(title_index)
-        self.client_chunk = ElasticClientMilesChunks(chunk_index)
+        self.client_title = ElasticClientTitles(title_index)
+        self.client_chunk = ElasticClientChunks(chunk_index)
         
     async def search_naive(self, query, chunk_k=10):
         chunk_hits = await self.client_chunk.search_chunks_naive(query, chunk_k)
