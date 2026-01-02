@@ -8,6 +8,7 @@ from fastapi import HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer
+from starlette.middleware.base import BaseHTTPMiddleware
 from lib.app_logger import get_logger
 
 logger = get_logger(__name__)
@@ -39,6 +40,20 @@ def setup_cors(app) -> None:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    
+    # Additional middleware to allow null origin (file:// protocol) when CORS_ALLOW_ORIGINS is "*"
+    if cors_allow_origins == "*":
+        class NullOriginMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request: Request, call_next):
+                response = await call_next(request)
+                origin = request.headers.get("origin")
+                if origin == "null" or origin is None:
+                    response.headers["Access-Control-Allow-Origin"] = "null"
+                    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+                    response.headers["Access-Control-Allow-Headers"] = "*"
+                return response
+        
+        app.add_middleware(NullOriginMiddleware)
 
 
 def _is_auth_enabled() -> bool:
