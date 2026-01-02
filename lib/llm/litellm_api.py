@@ -40,9 +40,8 @@ def get_litellm_fallback_router():
         )
     return _router
 
-async def call_llm_with_fallback(str1, response_format=None):
+async def call_llm_with_fallback(str1, model_name = "gemini", response_format=None):
     router = get_litellm_fallback_router()
-    model_name = "gemini"
     kwargs = {"temperature": 0.0}
     result = await call_llm(
         str1, 

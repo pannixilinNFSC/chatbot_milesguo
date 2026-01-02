@@ -7,12 +7,12 @@ https://gettr.com/user/pannixilin1
 ## Installation:  
 1. install python libraries, pip3 install -r requirements  
 2. register openai API on https://platform.openai.com/   
-3. write your openai API key to "openai_key.txt"  
-4. run jupyter notebook in a terminal  
+3. write your openai API key to ".env"  
+4. run jupyter notebook in a terminal `data_prepare.ipynb`
 ## use search only, 10000 call cost $1 on your openai budget
-5. open search.ipynb in browser  
+1. open search.ipynb in browser  
 ## use chatbot, 250 call cost $1 on your openai budget
-6. open chatbot.ipynb in browser  
+1. open chatbot.ipynb in browser  
 
 ## Webpage (Developing)
 
