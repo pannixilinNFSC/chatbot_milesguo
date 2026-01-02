@@ -117,11 +117,8 @@ class RAGBase:
 {self.prompt_after}"""
         
         llm_response = await call_llm_with_fallback(prompt, model_name="gpt")
-        llm_response = textwrap.fill(llm_response, width=50)
-        search_results_txt = textwrap.fill(search_results_txt, width=50)
-        prompt = textwrap.fill(prompt, width=50)
         
-        logger.info("LLM Response: %s", llm_response)
-        logger.info("Search Results: %s", search_results_txt)
-        logger.info("LLM Prompt: %s", prompt)
+        logger.info("LLM Response: %s", textwrap.fill(llm_response, width=50))
+        logger.info("Search Results: %s", textwrap.fill(search_results_txt, width=50))
+        logger.info("LLM Prompt: %s", textwrap.fill(prompt, width=50))
         return llm_response, search_results, prompt

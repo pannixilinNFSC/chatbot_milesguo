@@ -20,14 +20,14 @@ https://gettr.com/user/pannixilin1
 ## Usage
 
 ### Data Preparation
-Run `data_prepare.ipynb` to:
+Run `scripts/data_prepare.ipynb` to:
 - Download text from https://gwins.org/
 - Process and split text into chunks
 - Generate summaries and titles
 - Index documents in Elasticsearch
 
 ### Playground
-Open `playground.ipynb` to:
+Open `scripts/playground.ipynb` to:
 - Explore Elasticsearch search functionality
 - Test title search and chunk search
 - Experiment with the two-step search system
@@ -38,15 +38,15 @@ The RAG system uses:
 - **Multi-model LLM**: Uses LiteLLM with fallback support (GPT-4o-mini, Gemini 2.0 Flash)
 - **Async processing**: Supports asynchronous API calls for better performance
 
-For detailed technical documentation about the RAG algorithm, workflow, document expansion techniques, and design decisions, see [README_TECH.md](README_TECH.md).
+For detailed technical documentation about the RAG algorithm, workflow, document expansion techniques, and design decisions, see [docs/README_TECH.md](docs/README_TECH.md).
 
 ## Deployment
 
 **Recommended: Google Cloud Functions (2nd gen)**
 
-The easiest way to deploy is using Google Cloud Functions. See [README_GCLOUD_FUNCTIONS.md](README_GCLOUD_FUNCTIONS.md) for deployment instructions.
+The easiest way to deploy is using Google Cloud Functions. See [docs/README_GCLOUD_FUNCTIONS.md](docs/README_GCLOUD_FUNCTIONS.md) for deployment instructions.
 
-The project includes `main.py` which wraps the FastAPI app from `server.py` for Cloud Functions compatibility.
+The project includes `main.py` which contains the FastAPI app for Cloud Functions compatibility.
 
 **Alternative deployment options (archived):**
 - [archive/README_DOCKER.md](archive/README_DOCKER.md) - Docker deployment guide
@@ -54,9 +54,11 @@ The project includes `main.py` which wraps the FastAPI app from `server.py` for 
 
 ## Documentation
 
-- [README_TECH.md](README_TECH.md) - Technical documentation and architecture details
-- [README_API.md](README_API.md) - API endpoints and usage
-- [README_GCLOUD_FUNCTIONS.md](README_GCLOUD_FUNCTIONS.md) - Google Cloud Functions deployment (recommended)
+- [docs/README_TECH.md](docs/README_TECH.md) - Technical documentation and architecture details
+- [docs/README_API.md](docs/README_API.md) - API endpoints and usage
+- [docs/README_GCLOUD_FUNCTIONS.md](docs/README_GCLOUD_FUNCTIONS.md) - Google Cloud Functions deployment (recommended)
+- [docs/README_TEST.md](docs/README_TEST.md) - Testing documentation
+- [frontend/README_WEB.md](frontend/README_WEB.md) - Frontend documentation
 - [archive/README_GCLOUD_RUN.md](archive/README_GCLOUD_RUN.md) - Google Cloud Run deployment (archived)
 - [archive/README_DOCKER.md](archive/README_DOCKER.md) - Docker deployment guide (archived)
 
@@ -70,24 +72,40 @@ Note: browser calls require CORS. This repo enables CORS via FastAPI `CORSMiddle
 
 ```
 chatbot_milesguo/
-  data_prepare.ipynb        # Data preparation notebook
-  playground.ipynb           # Exploration notebook
-  prompt.json                # Prompt templates
+  main.py                    # FastAPI app entry point
   requirements.txt           # Dependencies
+  env.example                # Environment variables template
   
-  lib/
+  lib/                       # Core libraries
     rag/                     # RAG implementation
     llm/                     # LLM integration (LiteLLM)
     search/                  # Elasticsearch modules
-    data/                    # Data processing modules
+    security/                # Security (CORS, auth, rate limiting)
+    app_logger.py            # Logging utilities
   
+  docs/                      # Documentation
+    README_API.md            # API documentation
+    README_TECH.md           # Technical documentation
+    README_GCLOUD_FUNCTIONS.md  # Deployment guide
+    README_TEST.md           # Testing guide
+  
+  frontend/                  # Frontend
+    index.html               # Web UI
+    README_WEB.md            # Frontend documentation
+  
+  scripts/                   # Scripts and notebooks
+    data_prepare.ipynb       # Data preparation notebook
+    playground.ipynb         # Exploration notebook
+    deploy.sh                # Deployment script
+  
+  test/                      # Tests
   data_miles/                # Processed data (not in git)
   archive/                   # Legacy files
 ```
 
 ## Architecture
 
-The system implements a **two-step RAG architecture**. For detailed architecture documentation, see [README_TECH.md](README_TECH.md).
+The system implements a **two-step RAG architecture**. For detailed architecture documentation, see [docs/README_TECH.md](docs/README_TECH.md).
 
 ## Advantages vs. Naive RAG
 

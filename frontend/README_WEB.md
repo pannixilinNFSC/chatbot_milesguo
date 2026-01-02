@@ -82,6 +82,8 @@ Update API URLs in `index.html` to point to your production backend.
 ### CORS
 
 Add GitHub Pages URL to backend `CORS_ALLOW_ORIGINS` environment variable.
+example: 
+`CORS_ALLOW_ORIGINS=https://pannixilinnfsc.github.io`
 
 ## Custom Domain
 

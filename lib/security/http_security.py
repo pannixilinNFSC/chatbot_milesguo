@@ -28,8 +28,7 @@ def setup_cors(app) -> None:
     # Configure via `CORS_ALLOW_ORIGINS` (comma-separated) or "*" to allow all.
     cors_allow_origins = os.environ.get("CORS_ALLOW_ORIGINS", "*").strip()
     if cors_allow_origins == "*":
-        # Include "null" to allow file:// protocol (local HTML files)
-        cors_origins = ["*", "null"]
+        cors_origins = ["*"]
     else:
         cors_origins = [o.strip() for o in cors_allow_origins.split(",") if o.strip()]
 
