@@ -128,7 +128,7 @@ class ElasticClientMilesChunks(ElasticClientBase):
             if len(errors) > 10:
                 print(f"  ... and {len(errors) - 10} more errors")
         
-    def search_chunks_naive(self, 
+    async def search_chunks_naive(self, 
                             query: str, 
                             k=10, 
                             doc_ids:list[str]=None
@@ -164,12 +164,14 @@ class ElasticClientMilesChunks(ElasticClientBase):
                 "query": multi_match_query
             }
         
-        search_response = self.client.search(
+        search_response = await self.async_client.search(
             index=self.index_name,
             body=query_body,
             size=k
         )
         hits = search_response["hits"]["hits"]
+        scores = [hit["_score"] for hit in hits]
+        print(f"scores: {scores}")
         hits = [hit["_source"] for hit in hits]
         return hits
         

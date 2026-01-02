@@ -1,35 +1,81 @@
-from elasticsearch import Elasticsearch, helpers
 from dotenv import load_dotenv
 import os
+from lib.app_logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class ElasticClientBase:
-    def __init__(self, index_name):
+    def __init__(self, index_name, use_opensearch=False):
         """
-        Initialize Elasticsearch client with optimized settings for faster startup.
+        Initialize Elasticsearch or OpenSearch client with optimized settings for faster startup.
         
         Args:
-            index_name: Name of the Elasticsearch index
-            connect_timeout: Connection timeout in seconds (default: 2, set lower for faster startup)
-            max_retries: Maximum retries for connection (default: 0 to fail fast)
+            index_name: Name of the Elasticsearch/OpenSearch index
+            use_opensearch: If True, use OpenSearch instead of Elasticsearch (default: False)
         """
         load_dotenv()
-        ELASTIC_API_KEY = os.getenv("ELASTIC_API_KEY")
-        ELASTIC_URL = os.getenv("ELASTIC_URL")
-        self.client = Elasticsearch(
-            ELASTIC_URL,
-            api_key=ELASTIC_API_KEY, 
-            verify_certs=False,
-            ssl_show_warn=False,
-            request_timeout=10,
-        )
         self.index_name = index_name
+        self.use_opensearch = use_opensearch
+        
+        if use_opensearch:
+            '''
+            from opensearchpy import OpenSearch, helpers as opensearch_helpers
+            from opensearchpy import AsyncOpenSearch
+            OPENSEARCH_URL = os.getenv("OPENSEARCH_URL")
+            OPENSEARCH_USER = os.getenv("OPENSEARCH_USER", "admin")
+            OPENSEARCH_PASSWORD = os.getenv("OPENSEARCH_PASSWORD", "admin")
+            
+            # Synchronous client for write operations
+            self.client = OpenSearch(
+                hosts=[OPENSEARCH_URL],
+                http_auth=(OPENSEARCH_USER, OPENSEARCH_PASSWORD),
+                use_ssl=True,
+                verify_certs=False,
+                ssl_show_warn=False,
+                timeout=10,
+            )
+            # Async client for search operations
+            self.async_client = AsyncOpenSearch(
+                hosts=[OPENSEARCH_URL],
+                http_auth=(OPENSEARCH_USER, OPENSEARCH_PASSWORD),
+                use_ssl=True,
+                verify_certs=False,
+                ssl_show_warn=False,
+                timeout=10,
+            )
+            self.helpers = opensearch_helpers
+            '''
+            raise NotImplementedError("OpenSearch support is not enabled. Uncomment the OpenSearch imports and initialization code to use it.")
+        else:
+            from elasticsearch import Elasticsearch, helpers
+            from elasticsearch import AsyncElasticsearch
+            # Elasticsearch client initialization (default)
+            ELASTIC_API_KEY = os.getenv("ELASTIC_API_KEY")
+            ELASTIC_URL = os.getenv("ELASTIC_URL")
+            # Synchronous client for write operations
+            self.client = Elasticsearch(
+                ELASTIC_URL,
+                api_key=ELASTIC_API_KEY, 
+                verify_certs=False,
+                ssl_show_warn=False,
+                request_timeout=10,
+            )
+            # Async client for search operations
+            self.async_client = AsyncElasticsearch(
+                ELASTIC_URL,
+                api_key=ELASTIC_API_KEY,
+                verify_certs=False,
+                ssl_show_warn=False,
+                request_timeout=10,
+            )
+            self.helpers = helpers
         
     def clear_index(self):
         self.client.indices.delete(index=self.index_name)
         self.client.indices.create(index=self.index_name)
         self.update_mappings()
-        print(f"Index {self.index_name} cleared and mappings updated")
+        logger.info("Index %s cleared and mappings updated", self.index_name)
         return True
 
     def update_mappings(self, mappings=None):
@@ -78,7 +124,7 @@ class ElasticClientBase:
         """
         all_ids = set()
         
-        print(f"Retrieving all document IDs from index {self.index_name}...")
+        logger.info("Retrieving all document IDs from index %s...", self.index_name)
         try:
             # Use scroll API to get all document IDs
             response = self.client.search(
@@ -113,15 +159,15 @@ class ElasticClientBase:
                 self.client.clear_scroll(scroll_id=scroll_id)
                 
         except Exception as e:
-            print(f"Error retrieving document IDs: {e}")
+            logger.exception("Error retrieving document IDs")
         
         if all_ids:
-            print(f"Found {len(all_ids)} documents in index")
+            logger.info("Found %s documents in index", len(all_ids))
         
         return all_ids
 
     def insert_doc(self, docs):
-        bulk_response = helpers.bulk(
+        bulk_response = self.helpers.bulk(
             self.client, 
             docs, 
             index=self.index_name)
@@ -167,14 +213,14 @@ class ElasticClientBase:
             return (0, 0)
         
         try:
-            bulk_response = helpers.bulk(
+            bulk_response = self.helpers.bulk(
                 self.client,
                 bulk_actions,
                 index=self.index_name
             )
             return bulk_response
         except Exception as e:
-            print(f"Error in bulk insert/update: {e}")
+            logger.exception("Error in bulk insert/update")
             return (0, len(bulk_actions))
     
     def search_doc(self, query, k=10):

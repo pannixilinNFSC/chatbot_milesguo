@@ -1,0 +1,12 @@
+elasticsearch==9.2.1
+# opensearchpy==2.11.0
+nest-asyncio==1.6.0
+jupyter
+tqdm
+openai
+beautifulsoup4
+langchain-text-splitters
+python-dotenv
+uvicorn
+fastapi
+litellm

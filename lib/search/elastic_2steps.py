@@ -11,8 +11,12 @@ class Elastic2Steps:
         self.client_title = ElasticClientMilesTitles(title_index)
         self.client_chunk = ElasticClientMilesChunks(chunk_index)
         
-    def search_2steps(self, query, title_k=10, chunk_k=10):
-        title_hits = self.client_title.search_title_naive(query, title_k)
+    async def search_naive(self, query, chunk_k=10):
+        chunk_hits = await self.client_chunk.search_chunks_naive(query, chunk_k)
+        return chunk_hits
+        
+    async def search_2steps(self, query, title_k=10, chunk_k=10):
+        title_hits = await self.client_title.search_title_naive(query, title_k)
         doc_ids = [hit["doc_id"] for hit in title_hits]
-        chunk_hits = self.client_chunk.search_chunks_naive(query, chunk_k, doc_ids=doc_ids)
+        chunk_hits = await self.client_chunk.search_chunks_naive(query, chunk_k, doc_ids=doc_ids)
         return chunk_hits

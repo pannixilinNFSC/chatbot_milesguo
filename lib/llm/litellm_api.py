@@ -36,11 +36,16 @@ def get_litellm_fallback_router():
                     }
                 }
             ],
-            fallbacks=[{"gpt": ["gemini"]}, {"gemini":["gpt"]}]
+            fallbacks=[{"gpt": ["gemini"]}, {"gemini":["gpt"]}],
+            num_retries=1,
+            max_fallbacks=1, 
         )
     return _router
 
-async def call_llm_with_fallback(str1, model_name = "gemini", response_format=None):
+async def call_llm_with_fallback(str1, 
+                                 model_name = "gemini", 
+                                 response_format=None
+                                 ):
     router = get_litellm_fallback_router()
     kwargs = {"temperature": 0.0}
     result = await call_llm(
