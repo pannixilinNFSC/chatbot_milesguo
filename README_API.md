@@ -14,6 +14,21 @@ Base URL: `http://127.0.0.1:7711`
 {"message": "v0.0.1"}
 ```
 
+## Authentication (optional)
+
+If `API_AUTH_TOKEN` is set on the server, the following endpoints require a Bearer token:
+- `GET /search_naive`
+- `GET /search`
+- `GET /chatbot`
+
+Send the header:
+`Authorization: Bearer <API_AUTH_TOKEN>`
+
+For quick manual testing (e.g., pasting a URL in a browser), you can also pass:
+`?token=<API_AUTH_TOKEN>`
+
+Note: Query-string tokens are easier to accidentally leak (logs/referrers). Prefer the Authorization header in real clients.
+
 ### `GET /search_naive`
 Simple search without query expansion.
 
@@ -57,7 +72,7 @@ RAG-based chatbot response.
 ```bash
 curl "http://127.0.0.1:7711/search_naive?txt_query=郭文贵&k=10"
 curl "http://127.0.0.1:7711/search?txt_query=爆料革命&title_k=3&chunk_k=10"
-curl "http://127.0.0.1:7711/chatbot?txt_query=什么是爆料革命?"
+curl "https://us-central1-xixibaigao.cloudfunctions.net/chatbot-milesguo/chatbot?txt_query=什么是爆料革命"
 ```
 
 ```python

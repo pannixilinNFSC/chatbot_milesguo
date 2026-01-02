@@ -60,6 +60,12 @@ The project includes `main.py` which wraps the FastAPI app from `server.py` for 
 - [archive/README_GCLOUD_RUN.md](archive/README_GCLOUD_RUN.md) - Google Cloud Run deployment (archived)
 - [archive/README_DOCKER.md](archive/README_DOCKER.md) - Docker deployment guide (archived)
 
+## Frontend (static)
+
+Open `frontend/index.html` in a browser, set the Cloud Functions base URL + function name, then start chatting.
+
+Note: browser calls require CORS. This repo enables CORS via FastAPI `CORSMiddleware` and supports configuring allowed origins with `CORS_ALLOW_ORIGINS` ("*" or comma-separated).
+
 ## Project Structure
 
 ```

@@ -1,6 +1,6 @@
 # Google Cloud Functions Deployment
 
-Deploy to Cloud Functions (2nd gen) using `main.py` as entry point, which wraps the FastAPI app from `server.py`.
+Deploy to Cloud Functions (2nd gen) using `main.py` which contains the FastAPI app and automatically starts a server listening on PORT.
 
 ## Prerequisites
 
@@ -15,66 +15,38 @@ gcloud config set project YOUR_PROJECT_ID
 
 ## Deploy
 
-### Deploy Function
+### Deploy Script to Gcloud Functions
 
-Load environment variables from `.env` file:
-
+Run the deployment script:
 ```bash
-# Load .env file and deploy
-export $(cat .env | grep -v '^#' | xargs) && \
-gcloud functions deploy chatbot-milesguo \
-  --gen2 \
-  --runtime python311 \
-  --region us-central1 \
-  --source . \
-  --entry-point main.cloud_function \
-  --trigger-http \
-  --allow-unauthenticated \
-  --memory 256Mi \
-  --timeout 300s \
-  --max-instances 10 \
-  --set-env-vars OPENAI_API_KEY=$OPENAI_API_KEY,GOOGLE_API_KEY=$GOOGLE_API_KEY,ELASTIC_URL=$ELASTIC_URL,ELASTIC_API_KEY=$ELASTIC_API_KEY
+bash scripts/deploy.sh
 ```
 
+**Notes:**
+- The same deployment command can be used for both initial deployment and updates
+- Only changed configurations will be updated (code changes, environment variables, etc.)
+- The function URL remains the same after updates
 
-## Environment Variables
 
-Set via CLI:
-```bash
-gcloud functions deploy chatbot-milesguo \
-  --gen2 \
-  --region us-central1 \
-  --update-env-vars KEY=VALUE
-```
+### Environment Variables
 
-Or via console: Cloud Functions → chatbot-milesguo → Configuration → Environment variables
+Required (set in `.env`):
+- `OPENAI_API_KEY`: OpenAI API key
+- `GOOGLE_API_KEY`: Google/Gemini API key
+- `ELASTIC_URL`: Elasticsearch server URL
+- `ELASTIC_API_KEY`: Elasticsearch API key
 
-## Using Secret Manager
+Optional:
+- `API_AUTH_TOKEN`: If set, `/chatbot`, `/search`, `/search_naive` require `Authorization: Bearer <token>`
+- `CORS_ALLOW_ORIGINS`: "*" or comma-separated origins (e.g., "https://example.com,https://www.example.com")
 
-1. Create secrets (same as Cloud Run):
-```bash
-echo -n "your-api-key" | gcloud secrets create openai-api-key --data-file=-
-```
-
-2. Deploy with secrets:
-```bash
-gcloud functions deploy chatbot-milesguo \
-  --gen2 \
-  --region us-central1 \
-  --update-secrets OPENAI_API_KEY=openai-api-key:latest,ELASTIC_URL=elastic-url:latest,ELASTIC_API_KEY=elastic-api-key:latest
-```
-
-## Get Function URL
-
-```bash
-gcloud functions describe chatbot-milesguo --gen2 --region us-central1 --format 'value(serviceConfig.uri)'
-```
 
 ## Notes
 
-- Uses `main.py` as entry point, which wraps `server.py` FastAPI app
-- Entry point format: `module_name.function_name` (e.g., `main.cloud_function`)
+- Uses `main.py` which contains the FastAPI app
+- Cloud Functions 2nd gen runs `main.py` as script (no `--entry-point` needed)
+- The server starts in `if __name__ == "__main__"` block and listens on PORT (default 8080)
+- Cloud Functions 2nd gen runs on Cloud Run and automatically sets PORT environment variable
 - Cloud Functions 2nd gen supports longer timeouts (up to 3600s)
 - Memory and CPU scale automatically based on configuration
-- No need to manage containers or ports
 

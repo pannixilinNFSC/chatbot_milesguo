@@ -18,10 +18,6 @@ class ElasticClientChunks(ElasticClientBase):
         self.contexts_path = contexts_path
         self.title_path = title_path
         self.summaries_path = summaries_path
-        with open(self.summaries_path, "r", encoding="utf-8") as f:
-            self.summaries = json.load(f)
-        with open(self.title_path, "r", encoding="utf-8") as f:
-            self.titles = json.load(f)
         
     def get_chunk_id_from_file(self, file: str) -> str:
         basename = os.path.splitext(os.path.basename(file))[0]
@@ -59,6 +55,11 @@ class ElasticClientChunks(ElasticClientBase):
                       limit=None, 
                       skip_existing=True
         ):
+        with open(self.summaries_path, "r", encoding="utf-8") as f:
+            self.summaries = json.load(f)
+        with open(self.title_path, "r", encoding="utf-8") as f:
+            self.titles = json.load(f)
+        
         existing_ids = set()
         if skip_existing:
             existing_ids = self.get_existing_ids()

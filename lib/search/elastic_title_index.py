@@ -1,6 +1,5 @@
 import os
 import json
-from pydantic_core.core_schema import NoneSchema
 from tqdm import tqdm
 from lib.search.elastic_base import ElasticClientBase
 
@@ -14,10 +13,6 @@ class ElasticClientTitles(ElasticClientBase):
         super().__init__(title_index_name)
         self.title_path = title_path
         self.summaries_path = summaries_path
-        with open(self.summaries_path, "r", encoding="utf-8") as f:
-            self.summaries = json.load(f)
-        with open(self.title_path, "r", encoding="utf-8") as f:
-            self.titles = json.load(f)
             
     def clear_index(self):
         self.client.indices.delete(index=self.index_name)
@@ -51,6 +46,11 @@ class ElasticClientTitles(ElasticClientBase):
     
         
     def insert_titles(self, limit=None, skip_existing=True):
+        with open(self.summaries_path, "r", encoding="utf-8") as f:
+            self.summaries = json.load(f)
+        with open(self.title_path, "r", encoding="utf-8") as f:
+            self.titles = json.load(f)
+        
         # Check which documents already exist
         existing_ids = set()
         if skip_existing:

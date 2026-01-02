@@ -5,4 +5,4 @@ fastapi==0.128.0
 litellm==1.80.11
 nest-asyncio==1.6.0
 tqdm==4.67.1
-mangum==0.22.0
+mangum==0.20.0

@@ -1,16 +1,8 @@
-**/openai_key.txt
 .ipynb_checkpoints/
 certificate.pem
 key.pem
 **/__pycache__
-*.index
-**/txts/
-**/txt/
-**/emb/
 **/nohup.out
-**/dict_emb.json
-**/titles.json
-**/LiuZhongjing-All-In
-.gcloudignore
 .env
 data_miles/
+.github
