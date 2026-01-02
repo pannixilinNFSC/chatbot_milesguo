@@ -33,7 +33,7 @@ jobs:
         run: |
           BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           BUILD_SHA=$(git rev-parse --short HEAD)
-          sed -i "s|<!-- BUILD_INFO -->|<!-- Build: $BUILD_TIME | SHA: $BUILD_SHA -->|g" frontend/index.html
+          sed -i "s#<!-- BUILD_INFO -->#<!-- Build: $BUILD_TIME | SHA: $BUILD_SHA -->#g" frontend/index.html
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
