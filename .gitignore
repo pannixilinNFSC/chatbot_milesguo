@@ -11,5 +11,6 @@ key.pem
 **/dict_emb.json
 **/titles.json
 **/LiuZhongjing-All-In
+.gcloudignore
 .env
 data_miles/

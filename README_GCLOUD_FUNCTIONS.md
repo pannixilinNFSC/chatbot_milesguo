@@ -1,6 +1,6 @@
 # Google Cloud Functions Deployment
 
-Deploy to Cloud Functions (2nd gen) using `main_gcf.py` as entry point, which wraps the FastAPI app from `server.py`.
+Deploy to Cloud Functions (2nd gen) using `main.py` as entry point, which wraps the FastAPI app from `server.py`.
 
 ## Prerequisites
 
@@ -27,7 +27,7 @@ gcloud functions deploy chatbot-milesguo \
   --runtime python311 \
   --region us-central1 \
   --source . \
-  --entry-point main_gcf.cloud_function \
+  --entry-point main.cloud_function \
   --trigger-http \
   --allow-unauthenticated \
   --memory 256Mi \
@@ -72,8 +72,8 @@ gcloud functions describe chatbot-milesguo --gen2 --region us-central1 --format 
 
 ## Notes
 
-- Uses `main_gcf.py` as entry point, which wraps `server.py` FastAPI app
-- Entry point format: `module_name.function_name` (e.g., `main_gcf.cloud_function`)
+- Uses `main.py` as entry point, which wraps `server.py` FastAPI app
+- Entry point format: `module_name.function_name` (e.g., `main.cloud_function`)
 - Cloud Functions 2nd gen supports longer timeouts (up to 3600s)
 - Memory and CPU scale automatically based on configuration
 - No need to manage containers or ports

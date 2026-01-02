@@ -46,7 +46,7 @@ For detailed technical documentation about the RAG algorithm, workflow, document
 
 The easiest way to deploy is using Google Cloud Functions. See [README_GCLOUD_FUNCTIONS.md](README_GCLOUD_FUNCTIONS.md) for deployment instructions.
 
-The project includes `main_gcf.py` which wraps the FastAPI app from `server.py` for Cloud Functions compatibility.
+The project includes `main.py` which wraps the FastAPI app from `server.py` for Cloud Functions compatibility.
 
 **Alternative deployment options (archived):**
 - [archive/README_DOCKER.md](archive/README_DOCKER.md) - Docker deployment guide

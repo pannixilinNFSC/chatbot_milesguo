@@ -19,4 +19,3 @@ def cloud_function(request):
         Response object
     """
     return handler(request.environ, lambda status, headers: None)
-
