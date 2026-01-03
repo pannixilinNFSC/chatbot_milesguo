@@ -77,16 +77,20 @@ async def chatbot(
     query_context: list[str] = Query(default=[]),
     title_k: int = 3,
     chunk_k: int = 10,
+    query_expand_k: int = 1,
     expand_query: bool = True,
     _: None = Depends(require_auth),
     __: None = Depends(require_rate_limit),
 ):
     try:
+        # Limit query_context to maximum 6 items
+        limited_context = query_context[-6:] if len(query_context) > 6 else query_context
         content, search_results, prompt = await rag_base.chat(
             txt_query, 
-            query_context=query_context,
+            query_context=limited_context,
             title_k=title_k, 
             chunk_k=chunk_k, 
+            query_expand_k=query_expand_k,
             expand_query=expand_query
         )
         return {
@@ -96,7 +100,7 @@ async def chatbot(
         }
     except Exception as e:
         # Log all exceptions with full stack trace before converting to HTTPException
-        logger.error("Error in chatbot: %s", e, exc_info=True, extra={"txt_query": txt_query, "title_k": title_k, "chunk_k": chunk_k, "expand_query": expand_query})
+        logger.error("Error in chatbot: %s", e, exc_info=True, extra={"txt_query": txt_query, "title_k": title_k, "chunk_k": chunk_k, "query_expand_k": query_expand_k, "expand_query": expand_query})
         # Surface actionable config errors (e.g., missing API keys) to the caller.
         raise HTTPException(status_code=500, detail=str(e)) from e
 

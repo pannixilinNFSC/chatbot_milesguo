@@ -229,13 +229,18 @@ function getAuthToken() {
 }
 
 function getSettingsFromUI() {
+  // Clamp values to valid ranges
+  const chunkKValue = Number(chunkK.value || 10);
+  const queryExpandKValue = Number(queryExpandK.value || 1);
+  
   return {
     cloudBase: cloudBase.value.trim(),
     functionName: functionName.value.trim(),
     endpointPath: endpointPath.value.trim(),
     authToken: getAuthToken(),
     titleK: Number(titleK.value || 3),
-    chunkK: Number(chunkK.value || 10),
+    chunkK: Math.max(1, Math.min(12, chunkKValue)),
+    queryExpandK: Math.max(1, Math.min(3, queryExpandKValue)),
     expandQuery: !!expandQuery.checked,
   };
 }
@@ -246,6 +251,7 @@ function applySettingsToUI(s) {
   endpointPath.value = s.endpointPath ?? "";
   titleK.value = String(Number.isFinite(s.titleK) ? s.titleK : 3);
   chunkK.value = String(Number.isFinite(s.chunkK) ? s.chunkK : 10);
+  queryExpandK.value = String(Number.isFinite(s.queryExpandK) ? s.queryExpandK : 1);
   expandQuery.checked = s.expandQuery ?? true;
   updateComputedUrl();
 }
@@ -257,6 +263,7 @@ function loadSettings() {
     endpointPath: "chatbot",
     titleK: 3,
     chunkK: 10,
+    queryExpandK: 1,
     expandQuery: true,
   };
 
@@ -337,6 +344,7 @@ async function sendMessage() {
   url.searchParams.set("txt_query", text);
   url.searchParams.set("title_k", String(s.titleK));
   url.searchParams.set("chunk_k", String(s.chunkK));
+  url.searchParams.set("query_expand_k", String(s.queryExpandK));
   url.searchParams.set("expand_query", String(!!s.expandQuery));
   // Add query_context if available
   if (queryContext && queryContext.length > 0) {
@@ -406,8 +414,12 @@ async function sendMessage() {
     const content = data?.content ?? "";
     const sources = Array.isArray(data?.search_results) ? data.search_results : [];
     addMessage({ role: "assistant", text: content, sources, updateBubble: thinkingBubble });
-    // Keep only the last Q&A pair to save costs
-    queryContext = [`用户: ${text}`, `助手: ${content}`];
+    // Keep the last 3 Q&A pairs (6 messages) for context
+    queryContext.push(`用户: ${text}`, `助手: ${content}`);
+    // Keep only the last 6 messages (3 rounds of Q&A)
+    if (queryContext.length > 6) {
+      queryContext = queryContext.slice(-6);
+    }
     setStatus("Done");
   } catch (e) {
     const msg = e?.name === "AbortError" ? "Request cancelled." : String(e?.message || e);
@@ -428,6 +440,7 @@ const functionName = document.getElementById("functionName");
 const endpointPath = document.getElementById("endpointPath");
 const titleK = document.getElementById("titleK");
 const chunkK = document.getElementById("chunkK");
+const queryExpandK = document.getElementById("queryExpandK");
 const expandQuery = document.getElementById("expandQuery");
 const computedUrl = document.getElementById("computedUrl");
 const statusPill = document.getElementById("statusPill");
@@ -441,7 +454,34 @@ const sendBtn = document.getElementById("sendBtn");
 const cancelBtn = document.getElementById("cancelBtn");
 const errorLine = document.getElementById("errorLine");
 
-for (const el of [cloudBase, functionName, endpointPath, titleK, chunkK, expandQuery]) {
+// Add validation for chunkK and queryExpandK to ensure values stay within bounds
+chunkK.addEventListener("input", () => {
+  const value = Number(chunkK.value);
+  if (value < 1) chunkK.value = "1";
+  if (value > 12) chunkK.value = "12";
+  updateComputedUrl();
+});
+chunkK.addEventListener("change", () => {
+  const value = Number(chunkK.value);
+  if (value < 1) chunkK.value = "1";
+  if (value > 12) chunkK.value = "12";
+  updateComputedUrl();
+});
+
+queryExpandK.addEventListener("input", () => {
+  const value = Number(queryExpandK.value);
+  if (value < 1) queryExpandK.value = "1";
+  if (value > 3) queryExpandK.value = "3";
+  updateComputedUrl();
+});
+queryExpandK.addEventListener("change", () => {
+  const value = Number(queryExpandK.value);
+  if (value < 1) queryExpandK.value = "1";
+  if (value > 3) queryExpandK.value = "3";
+  updateComputedUrl();
+});
+
+for (const el of [cloudBase, functionName, endpointPath, titleK, expandQuery]) {
   el.addEventListener("input", updateComputedUrl);
   el.addEventListener("change", updateComputedUrl);
 }

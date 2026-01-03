@@ -17,6 +17,8 @@ class RAGBase:
         self.prompt_before = self.prompt_base["prompt1"]
         self.prompt_after = self.prompt_base["prompt2"]
         self.query_expander = QueryExpander()
+        self.max_query_expand_k = 3
+        self.max_chunk_k = 12
         
     async def search_naive(self, query, chunk_k=10):
         search_results = await self.elastic_2steps.search_naive(query, chunk_k)
@@ -29,14 +31,22 @@ class RAGBase:
     async def search(self, query:str, 
                      query_context:list[str]=[], 
                      title_k:int=3, 
-                     chunk_k:int=5, 
+                     chunk_k:int=10, 
+                     query_expand_k:int=1,
                      expand_query:bool=True
         ) -> tuple[list[dict], list[str]]:
+        query_expand_k = min(query_expand_k, self.max_query_expand_k)
+        chunk_k = min(chunk_k, self.max_chunk_k)
+        
         search_results = []
         query_list = [query]
         expanded_query = []
         if expand_query:
-            expanded_query = await self.query_expander.expand(query, query_context, k=1)
+            expanded_query = await self.query_expander.expand(
+                query, 
+                query_context, 
+                k=query_expand_k
+            )
             logger.info("Expanded Query: %s", expanded_query)
             query_list += expanded_query
             chunk_k = chunk_k // 2
@@ -110,6 +120,7 @@ class RAGBase:
                    query_context:list[str]=[], 
                    title_k:int=3, 
                    chunk_k:int=10, 
+                   query_expand_k:int=1,
                    expand_query:bool=True
     ) -> tuple[str, list[dict], str]:
         search_results, expanded_query = await self.search(
@@ -117,17 +128,17 @@ class RAGBase:
             query_context, 
             title_k=title_k, 
             chunk_k=chunk_k, 
+            query_expand_k=query_expand_k,
             expand_query=expand_query
         )
         
         search_results_txt = json.dumps(search_results, ensure_ascii=False)
         
-        prompt = f"""{self.prompt_before} 
-用户本次的话题是：{query} ；
-这是用户之前的问答记录：{query_context} ；
-以下是参考文本:
-{search_results_txt}
-{self.prompt_after}"""
+        prompt = f"""{self.prompt_before} 用户本次的话题是：{query} \n"""
+        if query_context:
+            prompt += f"""这是用户之前的问答记录：{query_context} \n"""
+        prompt += f"""以下是参考文本: {search_results_txt} \n"""
+        prompt += f"""{self.prompt_after}"""
         
         llm_response = await call_llm_with_fallback(prompt, model_name="gpt")
         

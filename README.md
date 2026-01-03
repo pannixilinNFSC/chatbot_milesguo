@@ -4,6 +4,19 @@ This is a demonstration of using RAG + LLM to build a chatbot, written in Python
 author: pannixilin  
 https://gettr.com/user/pannixilin1  
 
+
+## 相对第一版的改进
+
+RAG系统的通病是知识碎片化，由于所有的参考文本都是破碎的切片，即使检索召回率做到极限，仍然无法很好的回答问题。
+本系统的改进
+1. 在检索算法上做了精简，只使用BM25关键词检索的baseline。
+2. 扩展了粗检索文档，再检索段落的多种检索路径，拓展检索内容的丰富度。此思路接近在RAG和Agentic Search之间找到一个中间状态。
+3. 专注于document expansion，基于文本切片，扩展context和summary。解决参考文档碎片化的问题。
+4. 并行使用query expansion替换sparse vector，不仅增加推理速度，降低推理成本，精度甚至高于使用vector search。理解用户意图扩展关键问法，比提高10%的召回率重要得多。
+5. 放弃reranker，现代LLM的成本降低，LLM本身的性能又足以充当reranker。把所有找回文本扔给LLM，使reranker在RAG系统中不再必要。
+
+
+
 ## Installation
 
 1. Install Python libraries: `pip install -r requirements.txt`
@@ -42,15 +55,21 @@ For detailed technical documentation about the RAG algorithm, workflow, document
 
 ## Deployment
 
+**Production Architecture:**
+- **Frontend**: Static web frontend hosted on GitHub Pages (github.io)
+- **Backend API**: Google Cloud Functions (2nd gen)
+- **Database**: Elasticsearch Serverless
+- **LLM**: Primary ChatGPT (GPT-4o-mini) with fallback to Gemini 2.0 Flash
+
 **Recommended: Google Cloud Functions (2nd gen)**
 
 The easiest way to deploy is using Google Cloud Functions. See [docs/README_GCLOUD_FUNCTIONS.md](docs/README_GCLOUD_FUNCTIONS.md) for deployment instructions.
 
 The project includes `main.py` which contains the FastAPI app for Cloud Functions compatibility.
 
-**Alternative deployment options (archived):**
+~~**Alternative deployment options (archived):**
 - [archive/README_DOCKER.md](archive/README_DOCKER.md) - Docker deployment guide
-- [archive/README_GCLOUD_RUN.md](archive/README_GCLOUD_RUN.md) - Google Cloud Run deployment guide
+- [archive/README_GCLOUD_RUN.md](archive/README_GCLOUD_RUN.md) - Google Cloud Run deployment guide~~
 
 ## Documentation
 
@@ -64,7 +83,17 @@ The project includes `main.py` which contains the FastAPI app for Cloud Function
 
 ## Frontend (static)
 
+The frontend is automatically deployed to GitHub Pages via GitHub Actions workflow (`.github/workflows/deploy.yml`). Every time code is merged to `main`, `master`, or `v2` branch, the frontend is automatically updated on GitHub Pages.
+
+**Local Development:**
 Open `frontend/index.html` in a browser, set the Cloud Functions base URL + function name, then start chatting.
+
+*Important:* To avoid CORS blocking, make sure the backend has CORS enabled. Configure `CORS_ALLOW_ORIGINS` in your `.env` file (e.g., `CORS_ALLOW_ORIGINS=*` or specific origins like `CORS_ALLOW_ORIGINS=https://yourusername.github.io,file://`).
+
+**Automatic Deployment:**
+- The workflow triggers on push/merge to main/master/v2 branches
+- Frontend files are automatically deployed to GitHub Pages
+- Build timestamp and Git SHA are injected into the HTML
 
 Note: browser calls require CORS. This repo enables CORS via FastAPI `CORSMiddleware` and supports configuring allowed origins with `CORS_ALLOW_ORIGINS` ("*" or comma-separated).
 
@@ -120,8 +149,10 @@ Compared to a naive RAG baseline (search all chunks globally → stuff top-k int
 
 ### Technology Stack
 
+- **Frontend**: Static web (hosted on GitHub Pages)
+- **Backend**: Google Cloud Functions (FastAPI)
 - **Search**: Elasticsearch Serverless
-- **LLM**: LiteLLM (supports OpenAI GPT-4o-mini, Google Gemini 2.0 Flash)
+- **LLM**: LiteLLM with primary ChatGPT (GPT-4o-mini) and fallback Gemini 2.0 Flash
 - **Text Processing**: LangChain text splitters
 - **Data Processing**: Python with Jupyter Notebooks  
 
