@@ -173,6 +173,10 @@ class ElasticClientChunks(ElasticClientBase):
         hits = search_response["hits"]["hits"]
         scores = [hit["_score"] for hit in hits]
         print(f"scores: {scores}")
-        hits = [hit["_source"] for hit in hits]
-        return hits
+        results = []
+        for hit in hits:
+            result = hit["_source"].copy()
+            result["score"] = hit["_score"]
+            results.append(result)
+        return results
         

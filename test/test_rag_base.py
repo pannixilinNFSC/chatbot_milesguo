@@ -1,32 +1,31 @@
 """
 Unit tests for RAGBase class.
-All external dependencies (Elasticsearch, LiteLLM, file I/O) are mocked.
+All external dependencies (Elasticsearch, LiteLLM) are mocked.
 """
 import pytest
-from unittest.mock import Mock, patch, AsyncMock, mock_open
+from unittest.mock import Mock, patch, AsyncMock
 import json
 
 
 @pytest.fixture
-def mock_prompt_json():
-    """Mock prompt.json content."""
+def mock_prompt_base():
+    """Mock prompt.py PROMPT_BASE content."""
     return {
         "prompt1": "Test prompt before",
         "prompt2": "Test prompt after"
     }
 
 @pytest.fixture
-def rag_with_mocks(mock_prompt_json):
+def rag_with_mocks(mock_prompt_base):
     """
     Build a RAGBase with all external dependencies mocked.
 
     Motivation: avoid repeating the same patch boilerplate in every test.
     """
-    mocked_file = mock_open(read_data=json.dumps(mock_prompt_json))
     # Mock router before any imports that might trigger it
     mock_router = AsyncMock()
     with patch("lib.llm.litellm_api.get_litellm_fallback_router", return_value=mock_router), \
-         patch("builtins.open", mocked_file), \
+         patch("lib.rag.rag_base.PROMPT_BASE", mock_prompt_base), \
          patch("lib.rag.rag_base.Elastic2Steps") as elastic_cls, \
          patch("lib.rag.rag_base.QueryExpander") as expander_cls:
         elastic = AsyncMock()

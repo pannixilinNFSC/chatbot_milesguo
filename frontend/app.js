@@ -85,10 +85,11 @@ function addMessage({ role, text, sources = null, thinking = false, updateBubble
 
         const metaP = document.createElement("p");
         metaP.className = "sourceMeta";
+        const index = s.index ?? "";
         const chunkId = s.chunk_id ?? "";
         const docId = s.doc_id ?? "";
-        const score = s._score ?? "";
-        metaP.textContent = `doc_id: ${docId}   chunk_id: ${chunkId}   score: ${score}`;
+        const score = s.score != null ? Number(s.score).toFixed(4) : "";
+        metaP.textContent = `#${index}   doc_id: ${docId}   chunk_id: ${chunkId}   score: ${score}`;
 
         const textP = document.createElement("p");
         textP.className = "sourceText";

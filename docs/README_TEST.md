@@ -48,6 +48,6 @@ The following external dependencies are mocked in tests:
 
 - **Elasticsearch**: All Elasticsearch client calls are mocked
 - **LiteLLM API**: LLM API calls are mocked
-- **File I/O**: `prompt.json` file reading is mocked
+- **Prompt module**: `prompt.py` module is mocked
 - **Environment variables**: Tested with mocked environment variables
 

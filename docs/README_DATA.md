@@ -1,0 +1,279 @@
+# Data Preparation Guide
+
+This document explains how the data in `data_miles/` directory is generated and what each file/folder contains.
+
+## Overview
+
+The data preparation process follows a pipeline that transforms raw web documents into structured data suitable for RAG (Retrieval-Augmented Generation) search and indexing. The complete pipeline is defined in `scripts/data_prepare.ipynb`.
+
+## Data Directory Structure
+
+```
+data_miles/
+├── documents/          # Raw documents downloaded from web
+├── chunks/            # Document chunks (48,751 files)
+├── contexts/          # LLM-generated context for each chunk (48,373 files)
+├── titles.json        # Document titles extracted from raw documents
+└── summaries.json     # LLM-generated document summaries
+```
+
+## Data Generation Pipeline
+
+### Step 1: Download Documents (`documents/`)
+
+**Source:** `lib/data/downloader_miles.py` - `MilesGuoDataDownloader`
+
+**Process:**
+- Crawls 72 listing pages from `https://gwins.org/cn/milesguo/list_2_{1..72}.html`
+- Extracts ~2,866 article URLs from listing pages
+- Downloads each article's HTML content using multi-threaded crawler (8 workers)
+- Extracts text content from HTML and saves as `{id}.txt` files
+
+**Output:**
+- Directory: `data_miles/documents/`
+- Format: One `.txt` file per document, named by document ID
+- Content: Plain text extracted from HTML pages
+
+**Usage in notebook:**
+```python
+from lib.data.downloader_miles import MilesGuoDataDownloader
+
+downloader = MilesGuoDataDownloader(
+    out_folder="./data_miles/documents/",
+    max_workers=8
+)
+downloader.download_documents()
+```
+
+---
+
+### Step 2: Split into Chunks (`chunks/`)
+
+**Source:** `lib/data/chunker.py` - `NaiveChunker`
+
+**Process:**
+- Reads all documents from `documents/` directory
+- Splits each document into smaller chunks using `RecursiveCharacterTextSplitter` from LangChain
+- Parameters:
+  - `chunk_size=500`: Target size for each chunk (in characters)
+  - `chunk_overlap=100`: Overlap between adjacent chunks to preserve context
+- Saves each chunk as a separate file
+
+**Output:**
+- Directory: `data_miles/chunks/`
+- Format: `{doc_id}_{chunk_id}.txt` (e.g., `123_1.txt`, `123_2.txt`)
+- Count: 48,751 chunk files
+- Content: Text chunks ready for indexing
+
+**Usage in notebook:**
+```python
+from lib.data.chunker import NaiveChunker
+
+chunker = NaiveChunker(
+    input_dir="./data_miles/documents/",
+    output_dir="./data_miles/chunks/",
+    chunk_size=500,
+    chunk_overlap=100,
+    reload=False
+)
+chunker.run()
+```
+
+---
+
+### Step 3: Extract Titles (`titles.json`)
+
+**Source:** `lib/data/title_extractor.py` - `TitleExtractor`
+
+**Process:**
+- Reads all documents from `documents/` directory
+- Extracts title from each document using regex pattern `^(.*?)首页`
+- Falls back to "unknown title" if pattern doesn't match
+- Organizes titles by document ID
+
+**Output:**
+- File: `data_miles/titles.json`
+- Format: JSON dictionary `{doc_id: title}`
+- Example:
+  ```json
+  {
+    "123": "Document Title Here",
+    "124": "Another Title"
+  }
+  ```
+
+**Usage in notebook:**
+```python
+from lib.data.title_extractor import TitleExtractor
+
+extractor = TitleExtractor(
+    input_dir="./data_miles/documents/",
+    output_file="./data_miles/titles.json"
+)
+extractor.run()
+```
+
+---
+
+### Step 4: Generate Document Summaries (`summaries.json`)
+
+**Source:** `lib/data/summary_extractor.py` - `SummaryExtractor`
+
+**Process:**
+- Reads all documents from `documents/` directory
+- Uses LLM (via `call_llm_with_fallback`) to generate concise summaries
+- Prompt: "请对以下演讲的核心内容进行摘要，突出核心命名实体名称，不超过100个字。"
+- Processes documents in parallel (8 workers) for efficiency
+- Skips documents that already exist in output file
+
+**Output:**
+- File: `data_miles/summaries.json`
+- Format: JSON dictionary `{doc_id: summary}`
+- Cost: Approximately $1 for full dataset
+- Example:
+  ```json
+  {
+    "123": "Summary of document 123...",
+    "124": "Summary of document 124..."
+  }
+  ```
+
+**Usage in notebook:**
+```python
+from lib.data.summary_extractor import SummaryExtractor
+
+extractor = SummaryExtractor(
+    input_dir="./data_miles/documents/",
+    output_file="./data_miles/summaries.json",
+    max_workers=8,
+    limit=None
+)
+await extractor.run(skip_existing=True)
+```
+
+---
+
+### Step 5: Generate Chunk Contexts (`contexts/`)
+
+**Source:** `lib/data/contexter.py` - `ContextGenerator`
+
+**Process:**
+- Reads chunk files from `chunks/` directory
+- For each chunk, retrieves:
+  - Current chunk text
+  - Adjacent chunks (at `context_step=2` distance, i.e., ±2 chunks away)
+  - Document summary from `summaries.json`
+- Uses LLM to generate contextual description for each chunk
+- Prompt combines current chunk, adjacent chunks, and document summary
+- Processes chunks in parallel (8 workers)
+
+**Output:**
+- Directory: `data_miles/contexts/`
+- Format: `{doc_id}_{chunk_id}.txt` (matches chunk file names)
+- Count: 48,373 context files (slightly less than chunks due to edge cases)
+- Content: One-sentence contextual descriptions generated by LLM
+- Cost: Approximately $10 for full dataset
+
+**Usage in notebook:**
+```python
+from lib.data.contexter import ContextGenerator
+
+contexter = ContextGenerator(
+    chunks_folder="./data_miles/chunks/",
+    summaries_path="./data_miles/summaries.json",
+    output_folder="./data_miles/contexts/",
+    limit=None,
+    skip_existing=True,
+    context_step=2
+)
+await contexter.run(max_parallel=8)
+```
+
+---
+
+## Elasticsearch Indexing
+
+After data preparation, the processed data is indexed into Elasticsearch for search:
+
+### Chunk Index (`miles_guo`)
+
+**Source:** `lib/search/elastic_chunk_index.py` - `ElasticClientChunks`
+
+**Indexed Fields:**
+- `doc_id`: Document identifier
+- `chunk_id`: Chunk identifier within document
+- `text`: Chunk text content
+- `context`: LLM-generated context (from `contexts/`)
+- `doc_title`: Document title (from `titles.json`)
+- `doc_summary`: Document summary (from `summaries.json`)
+
+**Usage:**
+```python
+from lib.search.elastic_chunk_index import ElasticClientChunks
+
+elastic_chunk = ElasticClientChunks(
+    chunk_index_name="miles_guo",
+    chunks_path="./data_miles/chunks/",
+    contexts_path="./data_miles/contexts/",
+    title_path="./data_miles/titles.json",
+    summaries_path="./data_miles/summaries.json"
+)
+elastic_chunk.clear_index()
+elastic_chunk.insert_chunks(batch_size=1000, limit=None, skip_existing=True)
+```
+
+### Title Index (`miles_guo_titles`)
+
+**Source:** `lib/search/elastic_title_index.py` - `ElasticClientTitles`
+
+**Indexed Fields:**
+- `doc_id`: Document identifier
+- `title`: Document title
+- `summary`: Document summary
+
+**Usage:**
+```python
+from lib.search.elastic_title_index import ElasticClientTitles
+
+elastic_title = ElasticClientTitles(
+    title_index_name="miles_guo_titles",
+    title_path="./data_miles/titles.json",
+    summaries_path="./data_miles/summaries.json"
+)
+elastic_title.clear_index()
+elastic_title.insert_titles(limit=None, skip_existing=True)
+```
+
+---
+
+## Data Flow Summary
+
+```
+Web (gwins.org)
+    ↓
+documents/          (Raw HTML → Text)
+    ↓
+chunks/             (Split into 500-char chunks with 100-char overlap)
+    ↓
+titles.json         (Extract titles via regex)
+    ↓
+summaries.json      (LLM-generated, ~$1 cost)
+    ↓
+contexts/           (LLM-generated per chunk, ~$10 cost)
+    ↓
+Elasticsearch       (Indexed for search)
+```
+
+## Cost Estimation
+
+- **Document Summaries**: ~$1 for full dataset
+- **Chunk Contexts**: ~$10 for full dataset (~48K chunks)
+- **Total LLM Cost**: ~$11 for complete data preparation
+
+## Notes
+
+- All processing steps support `skip_existing=True` to resume interrupted processing
+- Chunking uses LangChain's `RecursiveCharacterTextSplitter` for intelligent text splitting
+- Context generation uses adjacent chunks (±2) to provide better semantic context
+- Document summaries and chunk contexts are used in Elasticsearch `multi_match` queries to improve search relevance
+

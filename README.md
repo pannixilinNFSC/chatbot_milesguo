@@ -75,6 +75,7 @@ The project includes `main.py` which contains the FastAPI app for Cloud Function
 
 - [docs/README_TECH.md](docs/README_TECH.md) - Technical documentation and architecture details
 - [docs/README_API.md](docs/README_API.md) - API endpoints and usage
+- [docs/README_DATA.md](docs/README_DATA.md) - Data preparation guide and data_miles directory structure
 - [docs/README_GCLOUD_FUNCTIONS.md](docs/README_GCLOUD_FUNCTIONS.md) - Google Cloud Functions deployment (recommended)
 - [docs/README_TEST.md](docs/README_TEST.md) - Testing documentation
 - [frontend/README_WEB.md](frontend/README_WEB.md) - Frontend documentation

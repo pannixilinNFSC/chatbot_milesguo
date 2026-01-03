@@ -118,7 +118,11 @@ class ElasticClientTitles(ElasticClientBase):
             body=query_body
         )
         hits = search_response["hits"]["hits"]
-        hits = [hit["_source"] for hit in hits]
-        return hits
+        results = []
+        for hit in hits:
+            result = hit["_source"].copy()
+            result["score"] = hit["_score"]
+            results.append(result)
+        return results
         
         

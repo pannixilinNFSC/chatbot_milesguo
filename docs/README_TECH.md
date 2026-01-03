@@ -29,7 +29,7 @@ The RAG system follows a comprehensive workflow to process user queries and gene
 
 5. **LLM Generation**
    - Constructs a prompt with:
-     - Pre-defined system prompt (from `prompt.json`)
+     - Pre-defined system prompt (from `prompt.py`)
      - User query
      - Retrieved context (search results)
      - Post-prompt instructions

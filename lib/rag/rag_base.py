@@ -4,6 +4,7 @@ import textwrap
 import asyncio
 from lib.search.elastic_2steps import Elastic2Steps
 from lib.rag.query_expand import QueryExpander
+from lib.rag.prompt import PROMPT_BASE
 from lib.llm.litellm_api import call_llm_with_fallback
 from lib.app_logger import get_logger
 
@@ -12,8 +13,7 @@ logger = get_logger(__name__)
 class RAGBase:
     def __init__(self, title_index="miles_guo_titles", chunk_index="miles_guo"):
         self.elastic_2steps = Elastic2Steps(title_index, chunk_index)
-        with open("lib/rag/prompt.json", "r") as f:
-            self.prompt_base = json.load(f)
+        self.prompt_base = PROMPT_BASE
         self.prompt_before = self.prompt_base["prompt1"]
         self.prompt_after = self.prompt_base["prompt2"]
         self.query_expander = QueryExpander()
@@ -69,6 +69,11 @@ class RAGBase:
         # reduce cost by deduplicating search results
         search_results = self.deduplicate_search_results(search_results)
         logger.info("Deduplicated search results: %s", len(search_results))
+        
+        # Add index to each search result
+        for index, result in enumerate(search_results, start=1):
+            result["index"] = index
+        
         return search_results, expanded_query
     
     def deduplicate_search_results(self, search_results: list[dict]) -> list[dict]:
