@@ -22,7 +22,7 @@ function nowTime() {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function addMessage({ role, text, sources = null, thinking = false, updateBubble = null }) {
+function addMessage({ role, text, sources = null, prompt = null, querys = null, thinking = false, updateBubble = null }) {
   // If updateBubble is provided, update existing message instead of creating new one
   if (updateBubble) {
     const pre = updateBubble.querySelector(".msg");
@@ -127,7 +127,7 @@ function addMessage({ role, text, sources = null, thinking = false, updateBubble
       metaP.className = "sourceMeta";
       const chunkId = s.chunk_id ?? "";
       const docId = s.doc_id ?? "";
-      const score = s._score ?? "";
+      const score = s.score != null ? Number(s.score).toFixed(4) : "";
       metaP.textContent = `doc_id: ${docId}   chunk_id: ${chunkId}   score: ${score}`;
 
       const textP = document.createElement("p");
@@ -142,6 +142,19 @@ function addMessage({ role, text, sources = null, thinking = false, updateBubble
 
     details.appendChild(list);
     bubble.appendChild(details);
+  }
+
+  if (role === "assistant") {
+    if (querys && querys.length) {
+      const d = document.createElement("details");
+      d.innerHTML = `<summary>Queries (${querys.length})</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em;max-height:200px;overflow:auto">${querys.map((q, i) => `${i ? 'Expanded ' + i : 'Original'}: ${q}`).join('\n')}</pre>`;
+      bubble.appendChild(d);
+    }
+    if (prompt) {
+      const d = document.createElement("details");
+      d.innerHTML = `<summary>Prompt</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.85em;max-height:400px;overflow:auto;background:#f5f5f5">${prompt}</pre>`;
+      bubble.appendChild(d);
+    }
   }
 
   messages.appendChild(bubble);
@@ -432,7 +445,9 @@ async function sendMessage() {
 
     const content = data?.content ?? "";
     const sources = Array.isArray(data?.search_results) ? data.search_results : [];
-    addMessage({ role: "assistant", text: content, sources, updateBubble: thinkingBubble });
+    const prompt = data?.prompt ?? null;
+    const querys = Array.isArray(data?.querys) ? data.querys : null;
+    addMessage({ role: "assistant", text: content, sources, prompt, querys, updateBubble: thinkingBubble });
     // Keep the last 3 Q&A pairs (6 messages) for context
     queryContext.push(`用户: ${text}`, `助手: ${content}`);
     // Keep only the last 6 messages (3 rounds of Q&A)

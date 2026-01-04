@@ -92,7 +92,7 @@ async def chatbot(
     try:
         # Limit query_context to maximum 6 items
         limited_context = query_context[-6:] if len(query_context) > 6 else query_context
-        content, search_results, prompt = await rag_base.chat(
+        result = await rag_base.chat(
             txt_query, 
             query_context=limited_context,
             title_k=title_k, 
@@ -101,11 +101,7 @@ async def chatbot(
             title_index=title_index,
             chunk_index=chunk_index
         )
-        return {
-            "content": content,
-            "search_results": search_results,
-            "prompt": prompt,
-        }
+        return result
     except Exception as e:
         # Log all exceptions with full stack trace before converting to HTTPException
         logger.error("Error in chatbot: %s", e, exc_info=True, extra={"txt_query": txt_query, "title_k": title_k, "chunk_k": chunk_k, "query_expand_k": query_expand_k})

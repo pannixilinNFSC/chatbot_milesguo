@@ -84,7 +84,12 @@ class RAGBase:
         Remove duplicate field values from search results.
         If a field value appears in a later element that was already seen in an earlier element,
         remove that field from the later element.
+        
+        Critical fields needed for display (doc_id, chunk_id, doc_title, index, score) are never removed.
         """
+        # Fields that must always be preserved for frontend display
+        PRESERVE_FIELDS = {"doc_id", "chunk_id", "doc_title", "index", "score", "_score"}
+        
         # Track seen values for each field (using JSON serialization for comparison)
         seen_values = {}
         seen_ids = set()
@@ -102,6 +107,10 @@ class RAGBase:
             
             # Check each field in the result
             for field_name, field_value in list(result_copy.items()):
+                # Never remove critical display fields
+                if field_name in PRESERVE_FIELDS:
+                    continue
+                    
                 # Initialize field tracking if not exists
                 if field_name not in seen_values:
                     seen_values[field_name] = set()
@@ -130,10 +139,12 @@ class RAGBase:
                    chunk_k:int=10, 
                    query_expand_k:int=1,
                    title_index:str=None,
-                   chunk_index:str=None
+                   chunk_index:str=None, 
+                   prompt_before:str=None,
+                   prompt_after:str=None
     ) -> tuple[str, list[dict], str]:
         # step 1: search
-        search_results, expanded_query = await self.search(
+        search_results, expanded_queries = await self.search(
             query, 
             query_context, 
             title_k=title_k, 
@@ -146,11 +157,16 @@ class RAGBase:
         # step 2: generate prompt
         search_results_txt = json.dumps(search_results, ensure_ascii=False)
         
-        prompt = f"""{self.prompt_before} 用户本次的话题是：{query} \n"""
+        if not prompt_before:
+            prompt_before = self.prompt_before
+        if not prompt_after:
+            prompt_after = self.prompt_after
+        
+        prompt = f"""{prompt_before} 用户本次的话题是：{query} \n"""
         if query_context:
             prompt += f"""这是用户之前的问答记录：{query_context} \n"""
         prompt += f"""以下是参考文本: {search_results_txt} \n"""
-        prompt += f"""{self.prompt_after}"""
+        prompt += f"""{prompt_after}"""
         
         # step 3: call LLM
         llm_response = await call_llm_with_fallback(prompt, model_name="gpt")
@@ -160,4 +176,11 @@ class RAGBase:
         logger.info("LLM Response: %s", textwrap.fill(llm_response, width=50))
         logger.info("Search Results: %s", textwrap.fill(search_results_txt, width=50))
         logger.info("LLM Prompt: %s", textwrap.fill(prompt, width=50))
-        return llm_response, search_results, prompt
+        
+        result = {
+            "content": llm_response,
+            "search_results": search_results,
+            "prompt": prompt, 
+            "querys": [query] + expanded_queries,
+        }
+        return result
