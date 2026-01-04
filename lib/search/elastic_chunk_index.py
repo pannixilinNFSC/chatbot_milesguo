@@ -1,7 +1,27 @@
 import os
 import json
 from tqdm import tqdm
+from pydantic import BaseModel, Field
 from lib.search.elastic_base import ElasticClientBase
+from lib.app_logger import get_logger
+logger = get_logger(__name__)
+
+
+class ElasticChunk(BaseModel):
+    """Pydantic model for Elasticsearch chunk document structure."""
+    doc_id: str
+    chunk_id: str
+    text: str
+    context: str = ""
+    doc_summary: str = ""
+    doc_title: str = ""
+    question: str = ""
+    
+    def to_elasticsearch_dict(self) -> dict:
+        """Convert model to dictionary format for Elasticsearch insertion."""
+        doc_dict = self.model_dump()
+        doc_dict["_id"] = f"{self.doc_id}_{self.chunk_id}"
+        return doc_dict
 
 
 
@@ -65,11 +85,13 @@ class ElasticClientChunks(ElasticClientBase):
             existing_ids = self.get_existing_ids()
             
         files = [os.path.join(self.chunks_path, x) for x in os.listdir(self.chunks_path)]
-        # Filter out directories and non-txt files
-        files = [f for f in files if os.path.isfile(f) and f.endswith('.txt')]
+        # Filter out directories and allow text files (.txt, .md, etc.)
+        text_extensions = {'.txt', '.md', '.markdown', '.text'}
+        files = [f for f in files if os.path.isfile(f) and any(f.lower().endswith(ext) for ext in text_extensions)]
         batch = []
         skipped = 0
         errors = []
+        logger.info(f"Inserting {len(files)} chunks")
         if limit is not None:
             files = files[:limit]
             
@@ -90,18 +112,18 @@ class ElasticClientChunks(ElasticClientBase):
                 
                 # Get document metadata
                 title_txt, summary_txt = self._get_document_metadata(doc_id)
-                question_txt = ""
                     
-                doc = {
-                    "_id": f"{doc_id}_{chunk_id}",
-                    "doc_id": doc_id,
-                    "chunk_id": chunk_id,
-                    "text": chunk_txt,
-                    "context": context_txt,
-                    "doc_summary": summary_txt, 
-                    "doc_title": title_txt,
-                    "question": question_txt
-                }
+                # Create document using Pydantic model
+                doc_model = ElasticChunk(
+                    doc_id=doc_id,
+                    chunk_id=chunk_id,
+                    text=chunk_txt,
+                    context=context_txt,
+                    doc_summary=summary_txt,
+                    doc_title=title_txt,
+                )
+                # Convert to dict for Elasticsearch insertion
+                doc = doc_model.to_elasticsearch_dict()
                 
                 batch.append(doc)
                 
@@ -128,6 +150,45 @@ class ElasticClientChunks(ElasticClientBase):
                 print(f"  - {error}")
             if len(errors) > 10:
                 print(f"  ... and {len(errors) - 10} more errors")
+                
+    
+    def insert_chunk_single(self, 
+                            chunk_txt: str, 
+                            doc_id: str="system_doc1", 
+                            chunk_id: str=None, 
+                            context_txt: str="", 
+                            summary_txt: str="", 
+                            title_txt: str=""
+    ):
+        """Insert a single chunk into Elasticsearch.
+        """
+        if chunk_id is None:
+            chunk_ids = self.get_chunk_ids_given_doc_id(doc_id)
+            # Filter numeric chunk_ids and convert to int
+            numeric_chunk_ids = [int(x) for x in chunk_ids if isinstance(x, str) and x.isdigit()]
+            if numeric_chunk_ids:
+                # Get the maximum chunk_id and increment by 1
+                chunk_id = str(max(numeric_chunk_ids) + 1)
+            else:
+                # If no existing chunks, start from 0
+                chunk_id = "0"
+            
+        doc_model = ElasticChunk(
+            doc_id=doc_id,
+            chunk_id=chunk_id,
+            text=chunk_txt,
+            context=context_txt,
+            doc_summary=summary_txt,
+            doc_title=title_txt,
+        )
+        doc = doc_model.to_elasticsearch_dict()
+        # Use empty set for existing_ids since we're inserting a single document
+        self.insert_or_update_doc([doc], existing_ids=set())
+        
+        
+        
+        
+                
         
     async def search_chunks_naive(self, 
                             query: str, 

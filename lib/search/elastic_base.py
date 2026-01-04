@@ -165,6 +165,24 @@ class ElasticClientBase:
             logger.info("Found %s documents in index", len(all_ids))
         
         return all_ids
+    
+    def get_chunk_ids_given_doc_id(self, 
+                                   doc_id:str, 
+                                   size:int=10000):
+        response = self.client.search(
+            index=self.index_name,
+            body={
+                "query": {
+                    "match": {
+                        "doc_id": doc_id
+                    }
+                },
+                "size": size
+            }
+        )
+        hits = response['hits']['hits']
+        chunk_ids = [hit['_source']['chunk_id'] for hit in hits if '_source' in hit and 'chunk_id' in hit['_source']]
+        return chunk_ids
 
     def insert_doc(self, docs):
         bulk_response = self.helpers.bulk(

@@ -539,7 +539,6 @@ fetchAuthTokenFromBackend().then(() => {
 });
 addMessage({
   role: "assistant",
-  text:
-    "Configure the Cloud Functions URL on the left, then ask a question. Auth token is automatically fetched from backend.",
+  text: "请提问",
 });
 
