@@ -53,7 +53,7 @@ async def search(
     txt_query: str,
     title_k: int = 3,
     chunk_k: int = 10,
-    expand_query: bool = True,
+    query_expand_k: int = 1,
     chunk_index: str = None,
     _: None = Depends(require_auth),
     __: None = Depends(require_rate_limit),
@@ -65,14 +65,14 @@ async def search(
             txt_query, 
             title_k=title_k, 
             chunk_k=chunk_k, 
-            expand_query=expand_query,
+            query_expand_k=query_expand_k,
             title_index=title_index,
             chunk_index=chunk_index
         )
         return search_results
     except Exception as e:
         # Log all exceptions with full stack trace before converting to HTTPException
-        logger.error("Error in search: %s", e, exc_info=True, extra={"txt_query": txt_query, "title_k": title_k, "chunk_k": chunk_k, "expand_query": expand_query})
+        logger.error("Error in search: %s", e, exc_info=True, extra={"txt_query": txt_query, "title_k": title_k, "chunk_k": chunk_k, "query_expand_k": query_expand_k})
         # Surface actionable config errors (e.g., missing API keys) to the caller.
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -83,7 +83,6 @@ async def chatbot(
     title_k: int = 3,
     chunk_k: int = 10,
     query_expand_k: int = 1,
-    expand_query: bool = True,
     chunk_index: str = None,
     _: None = Depends(require_auth),
     __: None = Depends(require_rate_limit),
@@ -99,7 +98,6 @@ async def chatbot(
             title_k=title_k, 
             chunk_k=chunk_k, 
             query_expand_k=query_expand_k,
-            expand_query=expand_query,
             title_index=title_index,
             chunk_index=chunk_index
         )
@@ -110,7 +108,7 @@ async def chatbot(
         }
     except Exception as e:
         # Log all exceptions with full stack trace before converting to HTTPException
-        logger.error("Error in chatbot: %s", e, exc_info=True, extra={"txt_query": txt_query, "title_k": title_k, "chunk_k": chunk_k, "query_expand_k": query_expand_k, "expand_query": expand_query})
+        logger.error("Error in chatbot: %s", e, exc_info=True, extra={"txt_query": txt_query, "title_k": title_k, "chunk_k": chunk_k, "query_expand_k": query_expand_k})
         # Surface actionable config errors (e.g., missing API keys) to the caller.
         raise HTTPException(status_code=500, detail=str(e)) from e
 

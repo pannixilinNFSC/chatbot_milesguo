@@ -35,7 +35,6 @@ class RAGBase:
                      title_k:int=3, 
                      chunk_k:int=10, 
                      query_expand_k:int=1,
-                     expand_query:bool=True,
                      title_index:str=None,
                      chunk_index:str=None
         ) -> tuple[list[dict], list[str]]:
@@ -45,7 +44,7 @@ class RAGBase:
         search_results = []
         query_list = [query]
         expanded_query = []
-        if expand_query:
+        if query_expand_k > 0:
             expanded_query = await self.query_expander.expand(
                 query, 
                 query_context, 
@@ -130,21 +129,21 @@ class RAGBase:
                    title_k:int=3, 
                    chunk_k:int=10, 
                    query_expand_k:int=1,
-                   expand_query:bool=True,
                    title_index:str=None,
                    chunk_index:str=None
     ) -> tuple[str, list[dict], str]:
+        # step 1: search
         search_results, expanded_query = await self.search(
             query, 
             query_context, 
             title_k=title_k, 
             chunk_k=chunk_k, 
             query_expand_k=query_expand_k,
-            expand_query=expand_query,
             title_index=title_index,
             chunk_index=chunk_index
         )
         
+        # step 2: generate prompt
         search_results_txt = json.dumps(search_results, ensure_ascii=False)
         
         prompt = f"""{self.prompt_before} 用户本次的话题是：{query} \n"""
@@ -153,6 +152,7 @@ class RAGBase:
         prompt += f"""以下是参考文本: {search_results_txt} \n"""
         prompt += f"""{self.prompt_after}"""
         
+        # step 3: call LLM
         llm_response = await call_llm_with_fallback(prompt, model_name="gpt")
         
         logger.info("Query Context: %s", "\n".join(query_context))

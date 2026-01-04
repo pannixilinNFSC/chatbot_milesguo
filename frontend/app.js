@@ -4,35 +4,11 @@ function trimSlash(s) {
   return String(s || "").replace(/\/+$/, "");
 }
 
-function buildEndpointUrl({ cloudBase, functionName, endpointPath }) {
-  const baseRaw = String(cloudBase || "").trim();
-  const base = trimSlash(baseRaw);
-  const fn = String(functionName || "").trim().replace(/^\/+|\/+$/g, "");
-  const ep = String(endpointPath || "").trim().replace(/^\/+|\/+$/g, "");
-
-  if (!base || !fn || !ep) return "";
-
-  // Avoid double-appending if the user pastes a Cloud Functions URL that already includes
-  // the function name (and/or endpoint path).
-  try {
-    const u = new URL(baseRaw);
-    const segs = u.pathname.split("/").filter(Boolean);
-    const last = segs[segs.length - 1];
-    const secondLast = segs[segs.length - 2];
-
-    // Case A: base already ends with /<function>/<endpoint>
-    if (secondLast === fn && last === ep) {
-      return trimSlash(u.toString());
-    }
-    // Case B: base already ends with /<function>
-    if (last === fn) {
-      return `${trimSlash(u.toString())}/${encodeURIComponent(ep)}`;
-    }
-  } catch {
-    // Not a valid URL; fall back to simple concatenation.
-  }
-
-  return `${base}/${encodeURIComponent(fn)}/${encodeURIComponent(ep)}`;
+function buildEndpointUrl(cloudBase) {
+  const url = String(cloudBase || "").trim();
+  if (!url) return "";
+  // Remove trailing slash
+  return trimSlash(url);
 }
 
 function setStatus(text, isError = false) {
@@ -181,14 +157,30 @@ async function fetchAuthTokenFromBackend() {
   tokenFetchPromise = (async () => {
     try {
       // Use DOM values directly to avoid circular dependency.
-      // Build the token URL via the same path-normalization logic as the main endpoint URL,
-      // so it still works if the user pastes a Cloud Functions URL that already contains
-      // the function name (or even an endpoint path).
-      const baseUrl = (cloudBase?.value || "").trim() || "https://us-central1-xixibaigao.cloudfunctions.net/";
-      const funcName = (functionName?.value || "").trim() || "chatbot-milesguo";
-      const tokenUrl = buildEndpointUrl({ cloudBase: baseUrl, functionName: funcName, endpointPath: "token" });
+      // Build the token URL by replacing the last path segment with "token"
+      const baseUrl = (cloudBase?.value || "").trim();
+      if (!baseUrl) {
+        console.warn("Cloud Functions base URL is empty.");
+        return null;
+      }
+      let tokenUrl;
+      try {
+        const url = new URL(baseUrl);
+        const pathSegments = url.pathname.split("/").filter(Boolean);
+        // Replace the last segment (endpoint path) with "token"
+        if (pathSegments.length > 0) {
+          pathSegments[pathSegments.length - 1] = "token";
+        } else {
+          pathSegments.push("token");
+        }
+        url.pathname = "/" + pathSegments.join("/");
+        tokenUrl = url.toString();
+      } catch (e) {
+        console.warn("Invalid Cloud Functions base URL:", e);
+        return null;
+      }
       if (!tokenUrl) {
-        console.warn("Token URL is empty (check Cloud base URL and function name).");
+        console.warn("Token URL is empty (check Cloud base URL).");
         return null;
       }
       console.log("Fetching auth token from:", tokenUrl);
@@ -236,38 +228,28 @@ function getSettingsFromUI() {
   
   return {
     cloudBase: cloudBase.value.trim(),
-    functionName: functionName.value.trim(),
-    endpointPath: endpointPath.value.trim(),
     authToken: getAuthToken(),
     titleK: Number(titleK.value || 3),
     chunkK: Math.max(1, Math.min(12, chunkKValue)),
     queryExpandK: Math.max(1, Math.min(3, queryExpandKValue)),
-    expandQuery: !!expandQuery.checked,
     chunkIndex: chunkIndex.value.trim() || null,
   };
 }
 
 function applySettingsToUI(s) {
   cloudBase.value = s.cloudBase ?? "";
-  functionName.value = s.functionName ?? "";
-  endpointPath.value = s.endpointPath ?? "";
   titleK.value = String(Number.isFinite(s.titleK) ? s.titleK : 3);
   chunkK.value = String(Number.isFinite(s.chunkK) ? s.chunkK : 10);
   queryExpandK.value = String(Number.isFinite(s.queryExpandK) ? s.queryExpandK : 1);
-  expandQuery.checked = s.expandQuery ?? true;
   chunkIndex.value = s.chunkIndex ?? "";
-  updateComputedUrl();
 }
 
 function loadSettings() {
   const defaults = {
-    cloudBase: "https://us-central1-xixibaigao.cloudfunctions.net/",
-    functionName: "chatbot-milesguo",
-    endpointPath: "chatbot",
+    cloudBase: "https://us-central1-xixibaigao.cloudfunctions.net/chatbot-milesguo/chatbot",
     titleK: 3,
     chunkK: 10,
     queryExpandK: 1,
-    expandQuery: true,
     chunkIndex: "",
   };
 
@@ -295,11 +277,6 @@ function saveSettings(s) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
 }
 
-function updateComputedUrl() {
-  const s = getSettingsFromUI();
-  const url = buildEndpointUrl(s);
-  computedUrl.textContent = url || "—";
-}
 
 let inFlight = null;
 let rateLimitTimer = null;
@@ -346,9 +323,9 @@ async function sendMessage() {
   }
 
   const s = getSettingsFromUI();
-  const endpoint = buildEndpointUrl(s);
+  const endpoint = buildEndpointUrl(s.cloudBase);
   if (!endpoint) {
-    errorLine.textContent = "Please fill Cloud Functions base URL, function name, and endpoint path.";
+    errorLine.textContent = "Please fill Cloud Functions base URL.";
     return;
   }
 
@@ -360,7 +337,6 @@ async function sendMessage() {
   url.searchParams.set("title_k", String(s.titleK));
   url.searchParams.set("chunk_k", String(s.chunkK));
   url.searchParams.set("query_expand_k", String(s.queryExpandK));
-  url.searchParams.set("expand_query", String(!!s.expandQuery));
   // Add chunk_index if provided (title_index is computed from chunk_index on backend)
   if (s.chunkIndex) {
     url.searchParams.set("chunk_index", s.chunkIndex);
@@ -455,14 +431,10 @@ async function sendMessage() {
 
 // Wire up UI
 const cloudBase = document.getElementById("cloudBase");
-const functionName = document.getElementById("functionName");
-const endpointPath = document.getElementById("endpointPath");
 const titleK = document.getElementById("titleK");
 const chunkK = document.getElementById("chunkK");
 const queryExpandK = document.getElementById("queryExpandK");
-const expandQuery = document.getElementById("expandQuery");
 const chunkIndex = document.getElementById("chunkIndex");
-const computedUrl = document.getElementById("computedUrl");
 const statusPill = document.getElementById("statusPill");
 const saveBtn = document.getElementById("saveBtn");
 const resetBtn = document.getElementById("resetBtn");
@@ -479,41 +451,30 @@ chunkK.addEventListener("input", () => {
   const value = Number(chunkK.value);
   if (value < 1) chunkK.value = "1";
   if (value > 12) chunkK.value = "12";
-  updateComputedUrl();
 });
 chunkK.addEventListener("change", () => {
   const value = Number(chunkK.value);
   if (value < 1) chunkK.value = "1";
   if (value > 12) chunkK.value = "12";
-  updateComputedUrl();
 });
 
 queryExpandK.addEventListener("input", () => {
   const value = Number(queryExpandK.value);
   if (value < 1) queryExpandK.value = "1";
   if (value > 3) queryExpandK.value = "3";
-  updateComputedUrl();
 });
 queryExpandK.addEventListener("change", () => {
   const value = Number(queryExpandK.value);
   if (value < 1) queryExpandK.value = "1";
   if (value > 3) queryExpandK.value = "3";
-  updateComputedUrl();
 });
 
-for (const el of [cloudBase, functionName, endpointPath, titleK, expandQuery, chunkIndex]) {
-  el.addEventListener("input", updateComputedUrl);
-  el.addEventListener("change", updateComputedUrl);
-}
-
-// Auto-fetch token when base URL or function name changes
-for (const el of [cloudBase, functionName]) {
-  el.addEventListener("change", () => {
-    cachedAuthToken = null;
-    tokenFetchPromise = null;
-    fetchAuthTokenFromBackend();
-  });
-}
+// Auto-fetch token when base URL changes
+cloudBase.addEventListener("change", () => {
+  cachedAuthToken = null;
+  tokenFetchPromise = null;
+  fetchAuthTokenFromBackend();
+});
 
 saveBtn.addEventListener("click", () => {
   const s = getSettingsFromUI();
@@ -553,9 +514,7 @@ userInput.addEventListener("keydown", (e) => {
 applySettingsToUI(loadSettings());
 setStatus("Idle");
 // Auto-fetch auth token from backend on page load
-fetchAuthTokenFromBackend().then(() => {
-  updateComputedUrl();
-});
+fetchAuthTokenFromBackend();
 addMessage({
   role: "assistant",
   text: "请提问",
