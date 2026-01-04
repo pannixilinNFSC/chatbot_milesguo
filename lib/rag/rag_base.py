@@ -22,8 +22,8 @@ class RAGBase:
         self.max_query_expand_k = 3
         self.max_chunk_k = 12
         
-    async def search_naive(self, query, chunk_k=10):
-        search_results = await self.elastic_2steps.search_naive(query, chunk_k)
+    async def search_naive(self, query, chunk_k=10, chunk_index=None):
+        search_results = await self.elastic_2steps.search_naive(query, chunk_k, index_name=chunk_index)
         return search_results
         
     async def search_2steps(self, query, title_k=3, chunk_k=10, title_index=None, chunk_index=None):
@@ -59,7 +59,7 @@ class RAGBase:
         async def search_per_query(q):
             # Run both search_naive and search_2steps in parallel for each query
             naive_results, steps_results = await asyncio.gather(
-                self.search_naive(q, chunk_k=chunk_k),
+                self.search_naive(q, chunk_k=chunk_k, chunk_index=chunk_index),
                 self.search_2steps(q, title_k=title_k, chunk_k=chunk_k, title_index=title_index, chunk_index=chunk_index)
             )
             return naive_results + steps_results
