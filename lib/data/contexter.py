@@ -23,8 +23,22 @@ class ContextGenerator:
         self.skip_existing = skip_existing
         
     def get_chunk_id_from_file(self, file):
+        """Extract doc_id and chunk_id from filename.
+        
+        Format: {doc_id}_{chunk_id}.txt
+        - chunk_id is the part after the last underscore
+        - doc_id is everything before the last underscore
+        """
         basename = os.path.splitext(os.path.basename(file))[0]  # Remove .txt extension
-        doc_id, chunk_id = basename.split("_")[:2]
+        parts = basename.split("_")
+        if len(parts) >= 2:
+            # chunk_id is the last part, doc_id is everything before it
+            chunk_id = parts[-1]
+            doc_id = "_".join(parts[:-1])
+        else:
+            # Fallback for files without underscore
+            doc_id = basename
+            chunk_id = "0"
         return doc_id, chunk_id
     
     def get_adjacent_chunk_txt(self, doc_id: str, chunk_id: int) -> str:

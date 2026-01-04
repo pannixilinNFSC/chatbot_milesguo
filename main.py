@@ -54,15 +54,19 @@ async def search(
     title_k: int = 3,
     chunk_k: int = 10,
     expand_query: bool = True,
+    title_index: str = None,
+    chunk_index: str = None,
     _: None = Depends(require_auth),
     __: None = Depends(require_rate_limit),
 ):
     try:
-        search_results = await rag_base.search(
+        search_results, expanded_query = await rag_base.search(
             txt_query, 
             title_k=title_k, 
             chunk_k=chunk_k, 
-            expand_query=expand_query
+            expand_query=expand_query,
+            title_index=title_index,
+            chunk_index=chunk_index
         )
         return search_results
     except Exception as e:
@@ -79,6 +83,8 @@ async def chatbot(
     chunk_k: int = 10,
     query_expand_k: int = 1,
     expand_query: bool = True,
+    title_index: str = None,
+    chunk_index: str = None,
     _: None = Depends(require_auth),
     __: None = Depends(require_rate_limit),
 ):
@@ -91,7 +97,9 @@ async def chatbot(
             title_k=title_k, 
             chunk_k=chunk_k, 
             query_expand_k=query_expand_k,
-            expand_query=expand_query
+            expand_query=expand_query,
+            title_index=title_index,
+            chunk_index=chunk_index
         )
         return {
             "content": content,

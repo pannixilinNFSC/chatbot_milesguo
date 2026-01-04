@@ -89,7 +89,7 @@ class ElasticClientTitles(ElasticClientBase):
         
         print(f"Inserted {processed} documents, skipped {skipped} existing documents")
         
-    async def search_title_naive(self, query, k=10):
+    async def search_title_naive(self, query, k=10, index_name=None):
         """
         Search titles by query, sorted by relevance score (default).
         
@@ -100,6 +100,9 @@ class ElasticClientTitles(ElasticClientBase):
         Returns:
             list: List of document sources, sorted by relevance score (descending)
         """
+        if index_name is None:
+            index_name = self.index_name
+        
         query_body = {
             "query": {
                 "multi_match": {
@@ -114,7 +117,7 @@ class ElasticClientTitles(ElasticClientBase):
             "sort": ["_score"]  # Explicitly sort by score (descending is default)
         }
         search_response = await self.async_client.search(
-            index=self.index_name,
+            index=index_name,
             body=query_body
         )
         hits = search_response["hits"]["hits"]

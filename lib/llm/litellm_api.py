@@ -4,10 +4,17 @@ from pydantic import BaseModel
 import asyncio
 import nest_asyncio
 import os
+import logging
 from litellm import Router
 nest_asyncio.apply()
 import tempfile
 litellm.enable_json_schema_validation=True
+
+# Suppress LiteLLM INFO logs
+logging.getLogger("LiteLLM").setLevel(logging.WARNING)
+logging.getLogger("LiteLLM Router").setLevel(logging.WARNING)
+# Also disable LiteLLM's verbose logging
+litellm.set_verbose = False
 
 # Create a single shared router instance to avoid callback limit issues
 _router = None

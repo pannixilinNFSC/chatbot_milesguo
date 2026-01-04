@@ -40,7 +40,8 @@ class TitleExtractor:
                 title = match.group(1)
                 title = title.replace("\n", " ")
             else:
-                title = "unknown title"
+                # Use filename as title if pattern doesn't match
+                title = id
             dict1[id] = title
         with open(self.output_file, "w", encoding="utf-8") as f:
             json.dump(dict1, f, indent=2, ensure_ascii=False)

@@ -12,6 +12,8 @@ logger = get_logger(__name__)
 
 class RAGBase:
     def __init__(self, title_index="miles_guo_titles", chunk_index="miles_guo"):
+        self.title_index = title_index
+        self.chunk_index = chunk_index
         self.elastic_2steps = Elastic2Steps(title_index, chunk_index)
         self.prompt_base = PROMPT_BASE
         self.prompt_before = self.prompt_base["prompt1"]
@@ -24,8 +26,8 @@ class RAGBase:
         search_results = await self.elastic_2steps.search_naive(query, chunk_k)
         return search_results
         
-    async def search_2steps(self, query, title_k=3, chunk_k=10):
-        search_results = await self.elastic_2steps.search_2steps(query, title_k, chunk_k)
+    async def search_2steps(self, query, title_k=3, chunk_k=10, title_index=None, chunk_index=None):
+        search_results = await self.elastic_2steps.search_2steps(query, title_k, chunk_k, title_index=title_index, chunk_index=chunk_index)
         return search_results
     
     async def search(self, query:str, 
@@ -33,7 +35,9 @@ class RAGBase:
                      title_k:int=3, 
                      chunk_k:int=10, 
                      query_expand_k:int=1,
-                     expand_query:bool=True
+                     expand_query:bool=True,
+                     title_index:str=None,
+                     chunk_index:str=None
         ) -> tuple[list[dict], list[str]]:
         query_expand_k = min(query_expand_k, self.max_query_expand_k)
         chunk_k = min(chunk_k, self.max_chunk_k)
@@ -56,7 +60,7 @@ class RAGBase:
             # Run both search_naive and search_2steps in parallel for each query
             naive_results, steps_results = await asyncio.gather(
                 self.search_naive(q, chunk_k=chunk_k),
-                self.search_2steps(q, title_k=title_k, chunk_k=chunk_k)
+                self.search_2steps(q, title_k=title_k, chunk_k=chunk_k, title_index=title_index, chunk_index=chunk_index)
             )
             return naive_results + steps_results
         
@@ -126,7 +130,9 @@ class RAGBase:
                    title_k:int=3, 
                    chunk_k:int=10, 
                    query_expand_k:int=1,
-                   expand_query:bool=True
+                   expand_query:bool=True,
+                   title_index:str=None,
+                   chunk_index:str=None
     ) -> tuple[str, list[dict], str]:
         search_results, expanded_query = await self.search(
             query, 
@@ -134,7 +140,9 @@ class RAGBase:
             title_k=title_k, 
             chunk_k=chunk_k, 
             query_expand_k=query_expand_k,
-            expand_query=expand_query
+            expand_query=expand_query,
+            title_index=title_index,
+            chunk_index=chunk_index
         )
         
         search_results_txt = json.dumps(search_results, ensure_ascii=False)

@@ -4,4 +4,5 @@ key.pem
 **/__pycache__
 **/nohup.out
 .env
-data_miles/
+data_*/
+scripts/data_prepare2.ipynb

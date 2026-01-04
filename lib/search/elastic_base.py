@@ -72,7 +72,10 @@ class ElasticClientBase:
             self.helpers = helpers
         
     def clear_index(self):
-        self.client.indices.delete(index=self.index_name)
+        try:
+            self.client.indices.delete(index=self.index_name)
+        except Exception as e:
+            logger.exception("Error clearing index %s", self.index_name)
         self.client.indices.create(index=self.index_name)
         self.update_mappings()
         logger.info("Index %s cleared and mappings updated", self.index_name)
@@ -204,18 +207,18 @@ class ElasticClientBase:
         """
         bulk_actions = []
         for doc in docs:
-            doc_id = doc.get("_id")
-            if doc_id is None:
+            _id = doc.get("_id")
+            if _id is None:
                 continue
             
             # Create a copy without _id for the document body
             doc_body = {k: v for k, v in doc.items() if k != "_id"}
             
-            if doc_id in existing_ids:
+            if _id in existing_ids:
                 # Update existing document
                 bulk_actions.append({
                     "_op_type": "update",
-                    "_id": doc_id,
+                    "_id": _id,
                     "doc": doc_body,
                     "doc_as_upsert": False  # Only update, don't create if missing
                 })
@@ -223,7 +226,7 @@ class ElasticClientBase:
                 # Insert new document
                 bulk_actions.append({
                     "_op_type": "index",
-                    "_id": doc_id,
+                    "_id": _id,
                     "_source": doc_body
                 })
         
@@ -241,15 +244,3 @@ class ElasticClientBase:
             logger.exception("Error in bulk insert/update")
             return (0, len(bulk_actions))
     
-    def search_doc(self, query, k=10):
-        search_response = self.client.search(
-            index=self.index_name,
-            body={
-                "query": {
-                    "match": {
-                        "text": query
-                    }
-                }
-            }
-        )
-        return search_response

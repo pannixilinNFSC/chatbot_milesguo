@@ -24,7 +24,6 @@ class ElasticChunk(BaseModel):
         return doc_dict
 
 
-
 class ElasticClientChunks(ElasticClientBase):
     def __init__(self, 
                  chunk_index_name="miles_guo", 
@@ -38,10 +37,21 @@ class ElasticClientChunks(ElasticClientBase):
         self.contexts_path = contexts_path
         self.title_path = title_path
         self.summaries_path = summaries_path
+        self.existing_ids = self.get_existing_ids()
         
-    def get_chunk_id_from_file(self, file: str) -> str:
+    def get_chunk_id_from_file(self, file: str) -> tuple[str, str]:
+        """Extract doc_id and chunk_id from filename.
+        """
         basename = os.path.splitext(os.path.basename(file))[0]
-        doc_id, chunk_id = basename.split("_")[:2]
+        parts = basename.split("_")
+        if len(parts) >= 2:
+            # chunk_id is the last part, doc_id is everything before it
+            chunk_id = parts[-1]
+            doc_id = "_".join(parts[:-1])
+        else:
+            # Fallback for files without underscore (e.g., system.txt)
+            doc_id = basename
+            chunk_id = "0"
         return doc_id, chunk_id
     
     def _read_chunk_file(self, file: str) -> str:
@@ -60,13 +70,17 @@ class ElasticClientChunks(ElasticClientBase):
     
     def _get_document_metadata(self, doc_id: str) -> tuple[str, str]:
         """Get title and summary for a document, returns empty strings if not found."""
-        title_txt = self.titles.get(doc_id, "")
+        title_txt = self.titles.get(doc_id) or ""
         if not title_txt:
             print(f"Title not found for document {doc_id}")
         
-        summary_txt = self.summaries.get(doc_id, "")
+        summary_txt = self.summaries.get(doc_id) or ""
         if not summary_txt:
             print(f"Summary not found for document {doc_id}")
+        
+        # Ensure we return strings, not None (handle case where dict value is None)
+        title_txt = str(title_txt) if title_txt is not None else ""
+        summary_txt = str(summary_txt) if summary_txt is not None else ""
         
         return title_txt, summary_txt
     
@@ -79,10 +93,6 @@ class ElasticClientChunks(ElasticClientBase):
             self.summaries = json.load(f)
         with open(self.title_path, "r", encoding="utf-8") as f:
             self.titles = json.load(f)
-        
-        existing_ids = set()
-        if skip_existing:
-            existing_ids = self.get_existing_ids()
             
         files = [os.path.join(self.chunks_path, x) for x in os.listdir(self.chunks_path)]
         # Filter out directories and allow text files (.txt, .md, etc.)
@@ -98,7 +108,10 @@ class ElasticClientChunks(ElasticClientBase):
         for file in tqdm(files, desc="Inserting chunks"):
             try:
                 doc_id, chunk_id = self.get_chunk_id_from_file(file)
-                
+                _id = f"{doc_id}_{chunk_id}"
+                if skip_existing and _id in self.existing_ids:
+                    skipped += 1
+                    continue
                 # Read chunk file
                 try:
                     chunk_txt = self._read_chunk_file(file)
@@ -128,7 +141,7 @@ class ElasticClientChunks(ElasticClientBase):
                 batch.append(doc)
                 
                 if len(batch) >= batch_size:
-                    self.insert_or_update_doc(batch, existing_ids)
+                    self.insert_or_update_doc(batch, self.existing_ids)
                     batch = []
                     
             except Exception as e:
@@ -139,7 +152,7 @@ class ElasticClientChunks(ElasticClientBase):
         # Insert remaining documents
         if batch:
             try:
-                self.insert_or_update_doc(batch, existing_ids)
+                self.insert_or_update_doc(batch, self.existing_ids)
             except Exception as e:
                 errors.append(f"Error inserting final batch: {e}")
         
@@ -185,16 +198,16 @@ class ElasticClientChunks(ElasticClientBase):
         # Use empty set for existing_ids since we're inserting a single document
         self.insert_or_update_doc([doc], existing_ids=set())
         
-        
-        
-        
                 
         
     async def search_chunks_naive(self, 
                             query: str, 
                             k=10, 
-                            doc_ids:list[str]=None
+                            doc_ids:list[str]=None,
+                            index_name=None
         ):
+        if index_name is None:
+            index_name = self.index_name
         multi_match_query = {
             "multi_match": {
                 "query": query,
@@ -227,7 +240,7 @@ class ElasticClientChunks(ElasticClientBase):
             }
         
         search_response = await self.async_client.search(
-            index=self.index_name,
+            index=index_name,
             body=query_body,
             size=k
         )
