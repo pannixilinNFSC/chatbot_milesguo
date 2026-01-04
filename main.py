@@ -54,11 +54,12 @@ async def search(
     title_k: int = 3,
     chunk_k: int = 10,
     expand_query: bool = True,
-    title_index: str = None,
     chunk_index: str = None,
     _: None = Depends(require_auth),
     __: None = Depends(require_rate_limit),
 ):
+    if chunk_index is not None:
+        title_index = chunk_index + "_titles"
     try:
         search_results, expanded_query = await rag_base.search(
             txt_query, 
@@ -83,11 +84,12 @@ async def chatbot(
     chunk_k: int = 10,
     query_expand_k: int = 1,
     expand_query: bool = True,
-    title_index: str = None,
     chunk_index: str = None,
     _: None = Depends(require_auth),
     __: None = Depends(require_rate_limit),
 ):
+    if chunk_index is not None:
+        title_index = chunk_index + "_titles"
     try:
         # Limit query_context to maximum 6 items
         limited_context = query_context[-6:] if len(query_context) > 6 else query_context

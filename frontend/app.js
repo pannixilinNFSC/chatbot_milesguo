@@ -243,7 +243,6 @@ function getSettingsFromUI() {
     chunkK: Math.max(1, Math.min(12, chunkKValue)),
     queryExpandK: Math.max(1, Math.min(3, queryExpandKValue)),
     expandQuery: !!expandQuery.checked,
-    titleIndex: titleIndex.value.trim() || null,
     chunkIndex: chunkIndex.value.trim() || null,
   };
 }
@@ -256,7 +255,6 @@ function applySettingsToUI(s) {
   chunkK.value = String(Number.isFinite(s.chunkK) ? s.chunkK : 10);
   queryExpandK.value = String(Number.isFinite(s.queryExpandK) ? s.queryExpandK : 1);
   expandQuery.checked = s.expandQuery ?? true;
-  titleIndex.value = s.titleIndex ?? "";
   chunkIndex.value = s.chunkIndex ?? "";
   updateComputedUrl();
 }
@@ -270,7 +268,6 @@ function loadSettings() {
     chunkK: 10,
     queryExpandK: 1,
     expandQuery: true,
-    titleIndex: "",
     chunkIndex: "",
   };
 
@@ -286,11 +283,7 @@ function loadSettings() {
 
   // Override with URL parameters if present
   const params = new URLSearchParams(window.location.search);
-  const urlTitleIndex = params.get("title_index");
   const urlChunkIndex = params.get("chunk_index");
-  if (urlTitleIndex !== null) {
-    settings.titleIndex = urlTitleIndex.trim();
-  }
   if (urlChunkIndex !== null) {
     settings.chunkIndex = urlChunkIndex.trim();
   }
@@ -368,10 +361,7 @@ async function sendMessage() {
   url.searchParams.set("chunk_k", String(s.chunkK));
   url.searchParams.set("query_expand_k", String(s.queryExpandK));
   url.searchParams.set("expand_query", String(!!s.expandQuery));
-  // Add title_index and chunk_index if provided
-  if (s.titleIndex) {
-    url.searchParams.set("title_index", s.titleIndex);
-  }
+  // Add chunk_index if provided (title_index is computed from chunk_index on backend)
   if (s.chunkIndex) {
     url.searchParams.set("chunk_index", s.chunkIndex);
   }
@@ -471,7 +461,6 @@ const titleK = document.getElementById("titleK");
 const chunkK = document.getElementById("chunkK");
 const queryExpandK = document.getElementById("queryExpandK");
 const expandQuery = document.getElementById("expandQuery");
-const titleIndex = document.getElementById("titleIndex");
 const chunkIndex = document.getElementById("chunkIndex");
 const computedUrl = document.getElementById("computedUrl");
 const statusPill = document.getElementById("statusPill");
@@ -512,7 +501,7 @@ queryExpandK.addEventListener("change", () => {
   updateComputedUrl();
 });
 
-for (const el of [cloudBase, functionName, endpointPath, titleK, expandQuery, titleIndex, chunkIndex]) {
+for (const el of [cloudBase, functionName, endpointPath, titleK, expandQuery, chunkIndex]) {
   el.addEventListener("input", updateComputedUrl);
   el.addEventListener("change", updateComputedUrl);
 }
