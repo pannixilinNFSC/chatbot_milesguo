@@ -5,16 +5,6 @@ author: pannixilin
 https://gettr.com/user/pannixilin1  
 
 
-## 相对第一版的改进
-
-RAG系统的通病是知识碎片化，由于所有的参考文本都是破碎的切片，即使检索召回率做到极限，仍然无法很好的回答问题。
-本系统的改进
-1. 在检索算法上做了精简，只使用BM25关键词检索的baseline。
-2. 扩展了粗检索文档，再检索段落的多种检索路径，拓展检索内容的丰富度。此思路接近在RAG和Agentic Search之间找到一个中间状态。
-3. 专注于document expansion，基于文本切片，扩展context和summary。解决参考文档碎片化的问题。
-4. 并行使用query expansion替换sparse vector，不仅增加推理速度，降低推理成本，精度甚至高于使用vector search。理解用户意图扩展关键问法，比提高10%的召回率重要得多。
-5. 放弃reranker，现代LLM的成本降低，LLM本身的性能又足以充当reranker。把所有找回文本扔给LLM，使reranker在RAG系统中不再必要。
-
 
 
 ## Installation
@@ -73,6 +63,7 @@ The project includes `main.py` which contains the FastAPI app for Cloud Function
 
 ## Documentation
 
+- [docs/README_zh.md](docs/README_zh.md) - 中文文档 (Chinese documentation)
 - [docs/README_TECH.md](docs/README_TECH.md) - Technical documentation and architecture details
 - [docs/README_API.md](docs/README_API.md) - API endpoints and usage
 - [docs/README_DATA.md](docs/README_DATA.md) - Data preparation guide and data_miles directory structure
@@ -158,42 +149,3 @@ Compared to a naive RAG baseline (search all chunks globally → stuff top-k int
 - **Data Processing**: Python with Jupyter Notebooks  
 
 
-
-网站声明
-
-欢迎访问[爆料革命文库内容问答机器人]（以下简称"本网站"）！
-
-网站目的：
-本网站旨在通过数据检索和聊天机器人的形式帮助用户理解和检索以[郭文贵]先生直播的字幕内容为核心的，爆料革命和新中国联邦的2000万字核心文本。
-1.为战友提供易于访问和理解的信息，以促进知识的传播和共享。
-2.方便路人快速了解关于 爆料革命/新中国联邦/郭文贵先生 的核心信息。
-
-代码开源：
-本网站所有代码全部开源
-https://github.com/pannixilinNFSC/chatbot_milesguo
-
-数据来源：
-本网站的全部数据内容来自于：https://gwins.org/ 数据版权归原网站所有。
-
-外部工具：
-本网站调用elastic serverless 作为检索数据库
-本网站调用openai chatgpt-4o-mini 作为文本生成模型。
-
-免责声明：
-本网站的内容仅供信息和参考之用，不构成法律、医疗、金融或其他专业建议。读者在使用本网站提供的信息时应谨慎，自行承担风险。本网站不对因使用本站内容而引发的任何后果承担责任。
-
-隐私政策：
-本网站尊重用户隐私，不会收集和分析用户ip地址和输入文本等信息。
-
-作者信息：
-本网站的内容由[盘尼西林]编写。此网站的解释权归个人所有。
-
-联系方式：
-如果您有任何问题、建议或意见，欢迎通过以下方式与我联系：
-- 社交媒体: https://gettr.com/user/pannixilin1
-
-变更通知：
-本网站声明的内容可能随时发生变更，变更后的声明将在本网站上公布。请定期查看以获取最新信息。
-感谢您访问本网站，我们希望您能在这里找到有用的资源和信息！
-
-[2026-01-01]

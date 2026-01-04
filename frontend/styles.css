@@ -135,6 +135,29 @@ textarea {
   font-size: 12px;
 }
 
+.readmeLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: rgba(15, 23, 48, 0.45);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.readmeLinks a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 12px;
+  padding: 4px 0;
+  transition: color 0.2s;
+}
+
+.readmeLinks a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
 .btnRow {
   display: flex;
   gap: 10px;
