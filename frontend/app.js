@@ -274,13 +274,28 @@ function loadSettings() {
     chunkIndex: "",
   };
 
+  let settings = defaults;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaults;
-    return { ...defaults, ...JSON.parse(raw) };
+    if (raw) {
+      settings = { ...defaults, ...JSON.parse(raw) };
+    }
   } catch {
-    return defaults;
+    // Keep defaults
   }
+
+  // Override with URL parameters if present
+  const params = new URLSearchParams(window.location.search);
+  const urlTitleIndex = params.get("title_index");
+  const urlChunkIndex = params.get("chunk_index");
+  if (urlTitleIndex !== null) {
+    settings.titleIndex = urlTitleIndex.trim();
+  }
+  if (urlChunkIndex !== null) {
+    settings.chunkIndex = urlChunkIndex.trim();
+  }
+
+  return settings;
 }
 
 function saveSettings(s) {
