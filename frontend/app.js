@@ -11,6 +11,7 @@ function buildEndpointUrl(cloudBase) {
   return trimSlash(url);
 }
 
+
 function setStatus(text, isError = false) {
   statusPill.textContent = text;
   statusPill.classList.toggle("danger", isError);
@@ -160,27 +161,40 @@ async function fetchAuthTokenFromBackend() {
       // Build the token URL by replacing the last path segment with "token"
       const baseUrl = (cloudBase?.value || "").trim();
       if (!baseUrl) {
-        console.warn("Cloud Functions base URL is empty.");
+        console.warn("Cloud Functions URL is empty.");
         return null;
       }
+      
+      // Validate URL format
+      let url;
+      try {
+        url = new URL(baseUrl);
+      } catch (e) {
+        console.error("Invalid Cloud Functions URL format:", e, "URL was:", baseUrl);
+        return null;
+      }
+      
+      // Build token URL by replacing the last path segment with "token"
       let tokenUrl;
       try {
-        const url = new URL(baseUrl);
         const pathSegments = url.pathname.split("/").filter(Boolean);
         // Replace the last segment (endpoint path) with "token"
         if (pathSegments.length > 0) {
           pathSegments[pathSegments.length - 1] = "token";
+          url.pathname = "/" + pathSegments.join("/");
         } else {
-          pathSegments.push("token");
+          // If URL has no path, append /token
+          url.pathname = "/token";
         }
-        url.pathname = "/" + pathSegments.join("/");
         tokenUrl = url.toString();
+        console.log("Cloud Functions URL:", baseUrl);
+        console.log("Constructed token URL:", tokenUrl);
       } catch (e) {
-        console.warn("Invalid Cloud Functions base URL:", e);
+        console.warn("Error constructing token URL:", e, "URL was:", baseUrl);
         return null;
       }
       if (!tokenUrl) {
-        console.warn("Token URL is empty (check Cloud base URL).");
+        console.warn("Token URL is empty (check Cloud Functions URL).");
         return null;
       }
       console.log("Fetching auth token from:", tokenUrl);
@@ -325,13 +339,23 @@ async function sendMessage() {
   const s = getSettingsFromUI();
   const endpoint = buildEndpointUrl(s.cloudBase);
   if (!endpoint) {
-    errorLine.textContent = "Please fill Cloud Functions base URL.";
+    errorLine.textContent = "Please fill Cloud Functions URL.";
+    return;
+  }
+  
+  // Validate URL format
+  try {
+    new URL(endpoint);
+  } catch (e) {
+    errorLine.textContent = "Invalid URL format. Please enter a valid Cloud Functions URL.";
+    setStatus("Invalid URL", true);
     return;
   }
 
   addMessage({ role: "user", text });
   userInput.value = "";
 
+  // Use the full URL directly (user can specify complete endpoint like /chatbot)
   const url = new URL(endpoint);
   url.searchParams.set("txt_query", text);
   url.searchParams.set("title_k", String(s.titleK));
