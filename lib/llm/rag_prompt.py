@@ -1,6 +1,5 @@
-"""
-RAG prompt templates for the chatbot system.
-"""
+import json
+
 
 PROMPT_BASE = {
     "prompt1": """你是一个用于问答任务的助手。
@@ -28,3 +27,23 @@ PROMPT_BASE = {
     "prompt2": ""
 }
 
+
+def build_rag_prompt(query: str, 
+                     search_results: list[dict], 
+                     query_context: list[str]=[], 
+                     prompt_before: str=None, 
+                     prompt_after: str=None
+    ) -> str:
+    search_results_txt = json.dumps(search_results, ensure_ascii=False)
+    
+    if not prompt_before:
+        prompt_before = PROMPT_BASE["prompt1"]
+    if not prompt_after:
+        prompt_after = PROMPT_BASE["prompt2"]
+    
+    prompt = f"""{prompt_before} 用户本次的话题是：{query} \n"""
+    if query_context:
+        prompt += f"""这是用户之前的问答记录：{query_context} \n"""
+    prompt += f"""以下是参考文本: {search_results_txt} \n"""
+    prompt += f"""{prompt_after}"""
+    return prompt

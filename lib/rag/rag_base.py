@@ -5,7 +5,7 @@ import asyncio
 #from lib.search.elastic_2steps import Elastic2Steps
 from lib.search.elastic_mix import ElasticMix
 from lib.rag.query_expand import QueryExpander
-from lib.rag.prompt import PROMPT_BASE
+from lib.llm.rag_prompt import build_rag_prompt
 from lib.llm.litellm_api import call_llm_with_fallback
 from lib.app_logger import get_logger
 
@@ -54,10 +54,6 @@ class RAGBase:
             chunk_k=chunk_k
         )
         
-        # Add index to each search result
-        for index, result in enumerate(search_results, start=1):
-            result["index"] = index
-        
         return search_results, expanded_query
     
     
@@ -83,18 +79,7 @@ class RAGBase:
         )
         
         # step 2: generate prompt
-        search_results_txt = json.dumps(search_results, ensure_ascii=False)
-        
-        if not prompt_before:
-            prompt_before = self.prompt_before
-        if not prompt_after:
-            prompt_after = self.prompt_after
-        
-        prompt = f"""{prompt_before} 用户本次的话题是：{query} \n"""
-        if query_context:
-            prompt += f"""这是用户之前的问答记录：{query_context} \n"""
-        prompt += f"""以下是参考文本: {search_results_txt} \n"""
-        prompt += f"""{prompt_after}"""
+        prompt = build_rag_prompt(query, search_results, query_context, prompt_before, prompt_after)
         
         # step 3: call LLM
         llm_response = await call_llm_with_fallback(prompt, model_name="gpt")

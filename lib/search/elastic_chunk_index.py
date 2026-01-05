@@ -247,8 +247,6 @@ class ElasticReadClientChunks(ElasticReadClientBase):
             size=k
         )
         hits = search_response["hits"]["hits"]
-        scores = [hit["_score"] for hit in hits]
-        print(f"scores: {scores}")
         results = []
         for hit in hits:
             result = hit["_source"].copy()

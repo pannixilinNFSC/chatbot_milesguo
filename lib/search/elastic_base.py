@@ -1,8 +1,13 @@
 from dotenv import load_dotenv
 import os
+import logging
 from lib.app_logger import get_logger
 
 logger = get_logger(__name__)
+
+# Disable elastic_transport INFO logs to reduce noise
+# Motivation: elastic_transport logs every HTTP request at INFO level, which is too verbose
+logging.getLogger("elastic_transport.transport").setLevel(logging.WARNING)
 
 
 class ElasticReadClientBase:

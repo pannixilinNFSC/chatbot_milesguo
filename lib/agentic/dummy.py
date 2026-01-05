@@ -59,13 +59,19 @@ async def call_llm_with_fallback(prompt, model_name, response_format):
         else:
             return f"Based on the search results: {prompt.replace('dummy prompt answer ', '')}"
 
-class RagBase:
+class ElasticMix:
     def __init__(self):
         pass
 
-    async def search(self, queries, title_index, chunk_index, title_k=3, chunk_k=10):
+    async def search(self, 
+                     query_list, 
+                     title_index, 
+                     chunk_index, 
+                     title_k=3, 
+                     chunk_k=10, 
+        ) -> list[dict]:
         search_results = []
-        for i, query in enumerate(queries):
+        for i, query in enumerate(query_list):
             search_results.append({
                 "_id": f"result_{i}",
                 "content": f"Dummy search result for query: {query}",
@@ -73,13 +79,5 @@ class RagBase:
             })
         return search_results
     
-    async def chat(self, query, title_index, chunk_index, query_context=[], title_k=3, chunk_k=10, query_expand_k=1):
-        search_results = await self.search([query], title_index, chunk_index, title_k=title_k, chunk_k=chunk_k)
-        return {
-            "content": "Dummy chat response",
-            "search_results": search_results,
-            "prompt": "Dummy prompt",
-            "querys": [query]
-        }
 
 

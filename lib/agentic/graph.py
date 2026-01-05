@@ -2,7 +2,7 @@ from langgraph.graph import StateGraph, END
 from lib.agentic.config import AgentState
 
 
-class Graph:
+class AgenticGraph:
     """
     Graph class for building the agentic RAG workflow.
     Manages the workflow graph construction with nodes and edges.
@@ -65,19 +65,3 @@ class Graph:
         )
         return workflow
 
-
-# Create a singleton instance for backward compatibility
-_graph_instance = Graph()
-
-# Export function for backward compatibility
-def build_workflow() -> StateGraph:
-    """
-    Build and return the complete workflow graph.
-    
-    This is a convenience function that uses the default Graph instance.
-    For custom configurations, use Graph class directly.
-    
-    Returns:
-        StateGraph: A compiled workflow graph ready for execution
-    """
-    return _graph_instance.build_workflow()

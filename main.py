@@ -4,14 +4,18 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Depends, Query
 from dotenv import load_dotenv
 from lib.rag.rag_base import RAGBase
+from lib.agentic.graph import AgenticGraph
 from lib.app_logger import get_logger, setup_logging
 from lib.security import setup_cors, require_auth, require_rate_limit, global_exception_handler
+from lib.agentic.config import get_agent_state_default
 
 app = FastAPI()
 load_dotenv()
 setup_logging()
 logger = get_logger(__name__)
 rag_base = RAGBase()
+agentic_base = AgenticGraph().build_workflow()
+
 
 setup_cors(app)
 app.add_exception_handler(Exception, global_exception_handler)
@@ -87,6 +91,8 @@ async def chatbot(
     _: None = Depends(require_auth),
     __: None = Depends(require_rate_limit),
 ):
+    state1 = get_agent_state_default()
+    agentic_base
     title_index =  f"{chunk_index}_titles"
     try:
         # Limit query_context to maximum 6 items
@@ -107,6 +113,35 @@ async def chatbot(
         # Surface actionable config errors (e.g., missing API keys) to the caller.
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+@app.get("/agentic_rag")
+async def agentic_rag(
+    txt_query: str,
+    chunk_index: str,
+    query_context: list[str] = Query(default=[]),
+    title_k: int = 3,
+    chunk_k: int = 10,
+    query_expand_k: int = 1,
+    max_search_count: int = 1,
+    _: None = Depends(require_auth),
+    __: None = Depends(require_rate_limit),
+):
+    state1 = get_agent_state_default(chunk_index, 
+        title_k, 
+        chunk_k, 
+        max_search_count=max_search_count,
+        max_query_expand_k=query_expand_k, 
+    )
+    state1["question"] = txt_query
+    state1["query_context"] = query_context
+    agentic_result = await agentic_base.ainvoke(state1)
+    result = {
+            "content": agentic_result["answer"],
+            "search_results": agentic_result["search_results"],
+            "querys": agentic_result["historical_queries"],
+            "query_type": agentic_result["query_type"],
+            "search_count": agentic_result["search_count"],
+        }
+    return result
 
 
 # Start server when run directly or in Cloud Functions 2nd gen

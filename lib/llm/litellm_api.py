@@ -6,6 +6,7 @@ import nest_asyncio
 import os
 import logging
 from litellm import Router
+import json
 nest_asyncio.apply()
 import tempfile
 litellm.enable_json_schema_validation=True
@@ -76,5 +77,15 @@ async def call_llm(str1,
         response_format=response_format, 
         **kwargs, 
     )
+    
     x = response.choices[0].message.content
+    
+    # Parse JSON string when using structured output (response_format with json_schema)
+    # litellm returns JSON string when using structured output, need to parse it
+    if response_format and response_format.get("type") == "json_schema":
+        try:
+            return json.loads(x)
+        except (json.JSONDecodeError, TypeError) as e:
+            logging.warning(f"Failed to parse structured output as JSON: {e}. Returning raw string.")
+            
     return x

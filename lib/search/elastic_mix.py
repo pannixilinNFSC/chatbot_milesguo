@@ -45,6 +45,10 @@ class ElasticMix:
         search_results = self.deduplicate_search_results(search_results)
         logger.info("Deduplicated search results: %s", len(search_results))
         
+        # Add index to each search result
+        for index, result in enumerate(search_results, start=1):
+            result["index"] = index
+        
         return search_results
     
     def deduplicate_search_results(self, search_results: list[dict]) -> list[dict]:

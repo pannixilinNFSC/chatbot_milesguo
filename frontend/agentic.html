@@ -7,13 +7,13 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <!-- BUILD_INFO -->
-    <title>chatbot-milesguo</title>
+    <title>chatbot-milesguo (Agentic RAG)</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="githubHeader">
-      <a href="agentic.html" class="githubLink">
-        Agentic RAG
+      <a href="index.html" class="githubLink">
+        Standard RAG
       </a>
       <a href="https://github.com/pannixilinNFSC/chatbot_milesguo" target="_blank" rel="noopener noreferrer" class="githubLink">
         GitHub
@@ -25,7 +25,7 @@
     <div class="app">
       <div class="card">
         <div class="cardHeader">
-          <h2 class="title">Settings <span class="subtitle">Cloud Functions + RAG params</span></h2>
+          <h2 class="title">Settings <span class="subtitle">Cloud Functions + Agentic RAG params</span></h2>
         </div>
         <div class="cardBody">
           <div class="row">
@@ -34,7 +34,7 @@
               <input
                 id="cloudBase"
                 type="text"
-                placeholder="https://us-central1-xixibaigao.cloudfunctions.net/chatbot-milesguo/chatbot"
+                placeholder="https://us-central1-xixibaigao.cloudfunctions.net/chatbot-milesguo/agentic_rag"
                 autocomplete="off"
               />
             </div>
@@ -53,9 +53,15 @@
                 <input id="queryExpandK" type="number" min="1" max="3" step="1" value="1" />
               </div>
             </div>
-            <div class="field">
-              <label for="chunkIndex">chunk_index</label>
-              <input id="chunkIndex" type="text" placeholder="miles_guo" autocomplete="off" />
+            <div class="inline2">
+              <div class="field">
+                <label for="chunkIndex">chunk_index</label>
+                <input id="chunkIndex" type="text" placeholder="miles_guo" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="maxSearchCount">max_search_count</label>
+                <input id="maxSearchCount" type="number" min="1" max="5" step="1" value="1" />
+              </div>
             </div>
 
             <div class="btnRow">
@@ -70,6 +76,7 @@
                 <a href="https://github.com/pannixilinNFSC/chatbot_milesguo/blob/v2/README.md" target="_blank" rel="noopener noreferrer">README.md</a>
                 <a href="https://github.com/pannixilinNFSC/chatbot_milesguo/blob/v2/docs/README_zh.md" target="_blank" rel="noopener noreferrer">docs/README_zh.md</a>
                 <a href="https://github.com/pannixilinNFSC/chatbot_milesguo/blob/v2/docs/README_API.md" target="_blank" rel="noopener noreferrer">docs/README_API.md</a>
+                <a href="https://github.com/pannixilinNFSC/chatbot_milesguo/blob/v2/docs/README_AGENTIC.md" target="_blank" rel="noopener noreferrer">docs/README_AGENTIC.md</a>
                 <a href="https://github.com/pannixilinNFSC/chatbot_milesguo/blob/v2/docs/README_DATA.md" target="_blank" rel="noopener noreferrer">docs/README_DATA.md</a>
                 <a href="https://github.com/pannixilinNFSC/chatbot_milesguo/blob/v2/docs/README_TEST.md" target="_blank" rel="noopener noreferrer">docs/README_TEST.md</a>
                 <a href="https://github.com/pannixilinNFSC/chatbot_milesguo/blob/v2/docs/README_TECH.md" target="_blank" rel="noopener noreferrer">docs/README_TECH.md</a>
@@ -86,7 +93,7 @@
       <div class="card chatWrap">
         <div class="chatHeader">
           <div>
-            <h2 class="title">Chat <span class="subtitle">RAG answers + optional sources</span></h2>
+            <h2 class="title">Chat <span class="subtitle">Agentic RAG answers + optional sources</span></h2>
           </div>
           <div class="btnRow">
             <button id="clearBtn" type="button">Clear</button>
@@ -114,7 +121,7 @@
       </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="agentic.js"></script>
   </body>
 </html>
 

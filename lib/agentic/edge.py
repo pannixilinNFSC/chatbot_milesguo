@@ -42,14 +42,3 @@ class Edge:
         else:
             # Need to refine, loop back to search
             return "rag_search"
-
-
-# Create a singleton instance for backward compatibility
-_edge_instance = Edge()
-
-# Export functions for backward compatibility
-def route_after_entry(state: AgentState) -> str:
-    return _edge_instance.route_after_entry(state)
-
-def route_after_validation(state: AgentState) -> str:
-    return _edge_instance.route_after_validation(state)
