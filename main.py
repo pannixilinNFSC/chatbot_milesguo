@@ -14,7 +14,7 @@ load_dotenv()
 setup_logging()
 logger = get_logger(__name__)
 rag_base = RAGBase()
-agentic_base = AgenticGraph().build_workflow()
+agentic_base = AgenticGraph().build_workflow().compile()
 
 
 setup_cors(app)

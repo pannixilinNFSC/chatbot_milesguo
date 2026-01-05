@@ -5,7 +5,7 @@ import asyncio
 #from lib.search.elastic_2steps import Elastic2Steps
 from lib.search.elastic_mix import ElasticMix
 from lib.rag.query_expand import QueryExpander
-from lib.llm.rag_prompt import build_rag_prompt
+from lib.llm.rag_prompt import build_rag_prompt, PROMPT_BASE
 from lib.llm.litellm_api import call_llm_with_fallback
 from lib.app_logger import get_logger
 

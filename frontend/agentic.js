@@ -34,52 +34,80 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
       }
     }
 
-    // Remove existing sources if any
-    const existingDetails = updateBubble.querySelector("details");
-    if (existingDetails) {
-      existingDetails.remove();
-    }
+    // Remove all existing details
+    const existingDetails = updateBubble.querySelectorAll("details");
+    existingDetails.forEach(d => d.remove());
 
-    // Add new sources if provided
-    if (role === "assistant" && sources && Array.isArray(sources) && sources.length > 0) {
-      const details = document.createElement("details");
-      details.open = !!showSources.checked;
+    // Add all details for assistant messages (collapsed by default)
+    if (role === "assistant") {
+      if (sources && Array.isArray(sources) && sources.length > 0) {
+        const details = document.createElement("details");
+        details.open = !!showSources.checked;
 
-      const summary = document.createElement("summary");
-      summary.textContent = `Sources (${sources.length})`;
-      details.appendChild(summary);
+        const summary = document.createElement("summary");
+        summary.textContent = `Sources (${sources.length})`;
+        details.appendChild(summary);
 
-      const list = document.createElement("div");
-      list.className = "sources";
+        const list = document.createElement("div");
+        list.className = "sources";
 
-      for (const s of sources) {
-        const item = document.createElement("div");
-        item.className = "sourceItem";
+        for (const s of sources) {
+          const item = document.createElement("div");
+          item.className = "sourceItem";
 
-        const title = document.createElement("p");
-        title.className = "sourceTitle";
-        title.textContent = s.doc_title || "(untitled)";
+          const title = document.createElement("p");
+          title.className = "sourceTitle";
+          title.textContent = s.doc_title || "(untitled)";
 
-        const metaP = document.createElement("p");
-        metaP.className = "sourceMeta";
-        const index = s.index ?? "";
-        const chunkId = s.chunk_id ?? "";
-        const docId = s.doc_id ?? "";
-        const score = s.score != null ? Number(s.score).toFixed(4) : "";
-        metaP.textContent = `#${index}   doc_id: ${docId}   chunk_id: ${chunkId}   score: ${score}`;
+          const metaP = document.createElement("p");
+          metaP.className = "sourceMeta";
+          const index = s.index ?? "";
+          const chunkId = s.chunk_id ?? "";
+          const docId = s.doc_id ?? "";
+          const score = s.score != null ? Number(s.score).toFixed(4) : "";
+          metaP.textContent = `#${index}   doc_id: ${docId}   chunk_id: ${chunkId}   score: ${score}`;
 
-        const textP = document.createElement("p");
-        textP.className = "sourceText";
-        textP.textContent = s.text || "";
+          const textP = document.createElement("p");
+          textP.className = "sourceText";
+          textP.textContent = s.text || "";
 
-        item.appendChild(title);
-        item.appendChild(metaP);
-        item.appendChild(textP);
-        list.appendChild(item);
+          item.appendChild(title);
+          item.appendChild(metaP);
+          item.appendChild(textP);
+          list.appendChild(item);
+        }
+
+        details.appendChild(list);
+        updateBubble.appendChild(details);
       }
 
-      details.appendChild(list);
-      updateBubble.appendChild(details);
+      if (querys && querys.length) {
+        const d = document.createElement("details");
+        d.open = false;
+        d.innerHTML = `<summary>Queries (${querys.length})</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em;max-height:200px;overflow:auto">${querys.map((q, i) => `${i ? 'Expanded ' + i : 'Original'}: ${q}`).join('\n')}</pre>`;
+        updateBubble.appendChild(d);
+      }
+
+      if (queryType) {
+        const d = document.createElement("details");
+        d.open = false;
+        d.innerHTML = `<summary>Query Type</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em">${queryType}</pre>`;
+        updateBubble.appendChild(d);
+      }
+
+      if (searchCount !== null) {
+        const d = document.createElement("details");
+        d.open = false;
+        d.innerHTML = `<summary>Search Count</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em">${searchCount}</pre>`;
+        updateBubble.appendChild(d);
+      }
+
+      if (prompt) {
+        const d = document.createElement("details");
+        d.open = false;
+        d.innerHTML = `<summary>Prompt</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.85em;max-height:400px;overflow:auto;background:#f5f5f5">${prompt}</pre>`;
+        updateBubble.appendChild(d);
+      }
     }
 
     messages.scrollTop = messages.scrollHeight;
@@ -147,21 +175,25 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
   if (role === "assistant") {
     if (querys && querys.length) {
       const d = document.createElement("details");
+      d.open = false;
       d.innerHTML = `<summary>Queries (${querys.length})</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em;max-height:200px;overflow:auto">${querys.map((q, i) => `${i ? 'Expanded ' + i : 'Original'}: ${q}`).join('\n')}</pre>`;
       bubble.appendChild(d);
     }
     if (queryType) {
       const d = document.createElement("details");
+      d.open = false;
       d.innerHTML = `<summary>Query Type</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em">${queryType}</pre>`;
       bubble.appendChild(d);
     }
     if (searchCount !== null) {
       const d = document.createElement("details");
+      d.open = false;
       d.innerHTML = `<summary>Search Count</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em">${searchCount}</pre>`;
       bubble.appendChild(d);
     }
     if (prompt) {
       const d = document.createElement("details");
+      d.open = false;
       d.innerHTML = `<summary>Prompt</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.85em;max-height:400px;overflow:auto;background:#f5f5f5">${prompt}</pre>`;
       bubble.appendChild(d);
     }

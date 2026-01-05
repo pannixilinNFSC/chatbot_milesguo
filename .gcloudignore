@@ -28,7 +28,7 @@ __pycache__/
 env.example
 LICENSE
 *.md
-data_miles/
+data_*/
 archive/
 playground.ipynb
 data_prepare.ipynb
