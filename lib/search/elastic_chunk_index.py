@@ -2,7 +2,7 @@ import os
 import json
 from tqdm import tqdm
 from pydantic import BaseModel, Field
-from lib.search.elastic_base import ElasticClientBase
+from lib.search.elastic_base import ElasticWriteClientBase, ElasticReadClientBase
 from lib.app_logger import get_logger
 logger = get_logger(__name__)
 
@@ -24,7 +24,7 @@ class ElasticChunk(BaseModel):
         return doc_dict
 
 
-class ElasticClientChunks(ElasticClientBase):
+class ElasticWriteClientChunks(ElasticWriteClientBase):
     def __init__(self, 
                  chunk_index_name="miles_guo", 
                  chunks_path="./data_miles/chunks/",
@@ -197,17 +197,19 @@ class ElasticClientChunks(ElasticClientBase):
         doc = doc_model.to_elasticsearch_dict()
         # Use empty set for existing_ids since we're inserting a single document
         self.insert_or_update_doc([doc], existing_ids=set())
-        
-                
+
+
+
+class ElasticReadClientChunks(ElasticReadClientBase):
+    def __init__(self):
+        super().__init__()
         
     async def search_chunks_naive(self, 
                             query: str, 
+                            index_name:str,
                             k=10, 
                             doc_ids:list[str]=None,
-                            index_name=None
         ):
-        if index_name is None:
-            index_name = self.index_name
         multi_match_query = {
             "multi_match": {
                 "query": query,

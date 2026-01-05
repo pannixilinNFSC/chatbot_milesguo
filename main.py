@@ -35,12 +35,13 @@ def get_token():
 @app.get("/search_naive")
 async def search_naive(
     txt_query: str,
+    chunk_index: str,
     k: int = 10,
     _: None = Depends(require_auth),
     __: None = Depends(require_rate_limit),
 ):
     try:
-        search_results = await rag_base.search_naive(txt_query, chunk_k=k)
+        search_results = await rag_base.search_naive(txt_query, chunk_index, chunk_k=k)
         return search_results
     except Exception as e:
         # Log all exceptions with full stack trace before converting to HTTPException
@@ -51,23 +52,22 @@ async def search_naive(
 @app.get("/search")
 async def search(
     txt_query: str,
+    chunk_index: str,
     title_k: int = 3,
     chunk_k: int = 10,
     query_expand_k: int = 1,
-    chunk_index: str = None,
     _: None = Depends(require_auth),
     __: None = Depends(require_rate_limit),
 ):
-    if chunk_index is not None:
-        title_index = chunk_index + "_titles"
+    title_index =  f"{chunk_index}_titles"
     try:
         search_results, expanded_query = await rag_base.search(
             txt_query, 
+            title_index,
+            chunk_index,
             title_k=title_k, 
             chunk_k=chunk_k, 
             query_expand_k=query_expand_k,
-            title_index=title_index,
-            chunk_index=chunk_index
         )
         return search_results
     except Exception as e:
@@ -79,27 +79,26 @@ async def search(
 @app.get("/chatbot")
 async def chatbot(
     txt_query: str,
+    chunk_index: str,
     query_context: list[str] = Query(default=[]),
     title_k: int = 3,
     chunk_k: int = 10,
     query_expand_k: int = 1,
-    chunk_index: str = None,
     _: None = Depends(require_auth),
     __: None = Depends(require_rate_limit),
 ):
-    if chunk_index is not None:
-        title_index = chunk_index + "_titles"
+    title_index =  f"{chunk_index}_titles"
     try:
         # Limit query_context to maximum 6 items
-        limited_context = query_context[-6:] if len(query_context) > 6 else query_context
+        query_context = query_context[-4:]
         result = await rag_base.chat(
             txt_query, 
-            query_context=limited_context,
+            title_index,
+            chunk_index,
+            query_context=query_context,
             title_k=title_k, 
-            chunk_k=chunk_k, 
+            chunk_k=chunk_k,
             query_expand_k=query_expand_k,
-            title_index=title_index,
-            chunk_index=chunk_index
         )
         return result
     except Exception as e:

@@ -5,4 +5,6 @@ key.pem
 **/nohup.out
 .env
 data_*/
-scripts/data_prepare2.ipynb
+
+*.pyc
+*.mmd

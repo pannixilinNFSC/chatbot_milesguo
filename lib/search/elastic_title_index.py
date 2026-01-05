@@ -1,10 +1,12 @@
 import os
 import json
 from tqdm import tqdm
-from lib.search.elastic_base import ElasticClientBase
+from lib.search.elastic_base import ElasticWriteClientBase, ElasticReadClientBase
+from lib.app_logger import get_logger
+logger = get_logger(__name__)
 
 
-class ElasticClientTitles(ElasticClientBase):
+class ElasticWriteClientTitles(ElasticWriteClientBase):
     def __init__(self, 
                  title_index_name="miles_guo_titles",
                  title_path="./data_miles/titles.json",
@@ -15,9 +17,13 @@ class ElasticClientTitles(ElasticClientBase):
         self.summaries_path = summaries_path
             
     def clear_index(self):
-        self.client.indices.delete(index=self.index_name)
+        try:
+            self.client.indices.delete(index=self.index_name)
+        except Exception as e:
+            logger.exception("Error clearing index %s", self.index_name)
         self.client.indices.create(index=self.index_name)
         self.update_mappings()
+        logger.info("Index %s cleared and mappings updated", self.index_name)
         return True
     
     def update_mappings(self, mappings=None):
@@ -89,7 +95,17 @@ class ElasticClientTitles(ElasticClientBase):
         
         print(f"Inserted {processed} documents, skipped {skipped} existing documents")
         
-    async def search_title_naive(self, query, k=10, index_name=None):
+        
+
+class ElasticReadClientTitles(ElasticReadClientBase):
+    def __init__(self):
+        super().__init__()
+
+    async def search_title_naive(self, 
+                                 query:str, 
+                                 index_name:str, 
+                                 k:int = 10, 
+        ) -> list[dict]:
         """
         Search titles by query, sorted by relevance score (default).
         
@@ -101,7 +117,7 @@ class ElasticClientTitles(ElasticClientBase):
             list: List of document sources, sorted by relevance score (descending)
         """
         if index_name is None:
-            index_name = self.index_name
+            raise ValueError("index_name is required")
         
         query_body = {
             "query": {

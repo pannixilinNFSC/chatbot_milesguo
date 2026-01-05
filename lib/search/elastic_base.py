@@ -5,7 +5,48 @@ from lib.app_logger import get_logger
 logger = get_logger(__name__)
 
 
-class ElasticClientBase:
+class ElasticReadClientBase:
+    def __init__(self, use_opensearch=False):
+        load_dotenv()
+        self.use_opensearch = use_opensearch
+        
+        if use_opensearch:
+            '''
+            from opensearchpy import OpenSearch, helpers as opensearch_helpers
+            from opensearchpy import AsyncOpenSearch
+            OPENSEARCH_URL = os.getenv("OPENSEARCH_URL")
+            OPENSEARCH_USER = os.getenv("OPENSEARCH_USER", "admin")
+            OPENSEARCH_PASSWORD = os.getenv("OPENSEARCH_PASSWORD", "admin")
+            # Async client for search operations
+            self.async_client = AsyncOpenSearch(
+                hosts=[OPENSEARCH_URL],
+                http_auth=(OPENSEARCH_USER, OPENSEARCH_PASSWORD),
+                use_ssl=True,
+                verify_certs=False,
+                ssl_show_warn=False,
+                timeout=10,
+            )
+            self.helpers = opensearch_helpers
+            '''
+            raise NotImplementedError("OpenSearch support is not enabled. Uncomment the OpenSearch imports and initialization code to use it.")
+        else:
+            from elasticsearch import Elasticsearch, helpers
+            from elasticsearch import AsyncElasticsearch
+            ELASTIC_API_KEY = os.getenv("ELASTIC_API_KEY")
+            ELASTIC_URL = os.getenv("ELASTIC_URL")
+            # Async client for search operations
+            self.async_client = AsyncElasticsearch(
+                ELASTIC_URL,
+                api_key=ELASTIC_API_KEY,
+                verify_certs=False,
+                ssl_show_warn=False,
+                request_timeout=10,
+            )
+            self.helpers = helpers
+        
+        
+
+class ElasticWriteClientBase:
     def __init__(self, index_name, use_opensearch=False):
         """
         Initialize Elasticsearch or OpenSearch client with optimized settings for faster startup.
@@ -35,15 +76,6 @@ class ElasticClientBase:
                 ssl_show_warn=False,
                 timeout=10,
             )
-            # Async client for search operations
-            self.async_client = AsyncOpenSearch(
-                hosts=[OPENSEARCH_URL],
-                http_auth=(OPENSEARCH_USER, OPENSEARCH_PASSWORD),
-                use_ssl=True,
-                verify_certs=False,
-                ssl_show_warn=False,
-                timeout=10,
-            )
             self.helpers = opensearch_helpers
             '''
             raise NotImplementedError("OpenSearch support is not enabled. Uncomment the OpenSearch imports and initialization code to use it.")
@@ -57,14 +89,6 @@ class ElasticClientBase:
             self.client = Elasticsearch(
                 ELASTIC_URL,
                 api_key=ELASTIC_API_KEY, 
-                verify_certs=False,
-                ssl_show_warn=False,
-                request_timeout=10,
-            )
-            # Async client for search operations
-            self.async_client = AsyncElasticsearch(
-                ELASTIC_URL,
-                api_key=ELASTIC_API_KEY,
                 verify_certs=False,
                 ssl_show_warn=False,
                 request_timeout=10,
