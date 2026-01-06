@@ -19,19 +19,20 @@ async def reply_validation_node(state: AgentState) -> AgentState:
     updates historical queries to track all search attempts.
     """
     agentic_config = state.get("agentic_config", {})
-    max_search_count = agentic_config.get("max_search_count", 3)
+    max_iter = agentic_config.get("max_iter", 3)
     search_count = state.get("search_count", 0)
     search_results = state.get("search_results", [])
     
     # Check if maximum search iterations have been reached
-    exceeded_limit = search_count >= max_search_count
+    exceeded_limit = search_count >= max_iter
     
     if not exceeded_limit:
         # Use LLM to evaluate answer quality and determine next action
         question = state.get("question", "")
         answer = state.get("answer", "")
         search_results = state.get("search_results", [])
-        prompt_agentic, agentic_response_format = get_agentic_prompt_and_format(question, answer, search_results, agentic_config)
+        historical_search_ops = state.get("historical_search_ops", [])
+        prompt_agentic, agentic_response_format = get_agentic_prompt_and_format(question, answer, search_results, historical_search_ops, agentic_config)
         llm_output = await call_llm_with_fallback(
             prompt_agentic, 
             model_name="gemini", 

@@ -106,7 +106,7 @@ result = app.invoke({"question": "What is the capital of France?"})
 - **Validation States**:
   - `"valid_answer"`: Answer is sufficient, proceed to end
   - `"refine_query"`: Answer needs improvement, generate refined queries
-- **Safety**: Enforces `max_search_count` limit (default: 1, configurable via `agentic_config`) to prevent infinite loops
+- **Safety**: Enforces `max_iter` limit (default: 1, configurable via `agentic_config`) to prevent infinite loops
 - **Output**: Updates `expanded_queries`, `historical_queries`, `answer`, and `search_results`
 
 ### Routing Functions
@@ -122,7 +122,7 @@ result = app.invoke({"question": "What is the capital of France?"})
 - **Function**: `lib.agentic.edge.route_after_validation`
 - **Location**: After `reply_validation` node
 - **Logic**:
-  - If `search_count >= max_search_count` (from `agentic_config`) or `len(expanded_queries) == 0` → route to `END`
+  - If `search_count >= max_iter` (from `agentic_config`) or `len(expanded_queries) == 0` → route to `END`
   - Otherwise → route back to `rag_search` for refinement loop
 
 ## State Schema
@@ -140,7 +140,7 @@ class AgentState(TypedDict):
     search_results: List[dict]       # Search results for RAG answer generation
     search_count: int                # Number of RAG search iterations performed
     search_config: SearchConfig      # Search configuration (title_index, chunk_index, title_k, chunk_k)
-    agentic_config: AgenticConfig    # Agentic configuration (max_search_count, max_query_expand_k)
+    agentic_config: AgenticConfig    # Agentic configuration (max_iter, max_query_expand_k)
 ```
 
 ## Workflow Execution Flow
@@ -155,7 +155,7 @@ class AgentState(TypedDict):
    - **Generate**: `rag_reply` creates answer from search results
    - **Validate**: `reply_validation` evaluates answer quality
    - **Refine Loop**: If answer is insufficient, generate refined queries and loop back to search
-   - **Termination**: Exit when answer is valid or `max_search_count` is reached
+   - **Termination**: Exit when answer is valid or `max_iter` is reached
 
 ## Example Usage
 
@@ -173,7 +173,7 @@ state = get_agent_state_default(
     chunk_index="miles_guo",
     title_k=3,
     chunk_k=10,
-    max_search_count=3,
+    max_iter=3,
     max_query_expand_k=1
 )
 state["question"] = "What is the capital of France?"

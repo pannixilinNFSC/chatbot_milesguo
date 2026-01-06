@@ -30,6 +30,26 @@ class ElasticMix:
         )
         return chunk_hits
     
+    async def search_doc(self, 
+                         query_list: list[str], 
+                         doc_id: str, 
+                         chunk_index: str, 
+                         chunk_k: int=10, 
+                         **kwargs, 
+        )->list[dict]:
+        """
+        Search chunks within a specific document.
+        """
+        doc_ids = [doc_id]
+        len_query_list = len(query_list)
+        chunk_k = max(1, chunk_k // len_query_list)
+        tasks = [self.search_naive(
+            query, chunk_index, chunk_k=chunk_k, doc_ids=doc_ids
+            ) for query in query_list]
+        results_list = await asyncio.gather(*tasks)
+        results = [item for sublist in results_list for item in sublist]
+        return results_list
+    
     async def search_neighbour_chunks(self, 
                                       doc_id: str, 
                                       chunk_id: str, 
@@ -81,6 +101,8 @@ class ElasticMix:
         Search using both 1-step and 2-step approaches.
         """
         tasks = []
+        len_query_list = len(query_list)
+        chunk_k = max(1, chunk_k // len_query_list)
         tasks += [self.search_naive(query, chunk_index, chunk_k=chunk_k) 
             for query in query_list]
         tasks += [self.search_2steps(query, title_index, chunk_index, title_k=title_k, chunk_k=chunk_k)
@@ -101,7 +123,7 @@ class ElasticMix:
         """
         ops_func_mapping = {
             "search_general": self.search_1step_and_2steps, 
-            "search_doc": self.search_naive, 
+            "search_doc": self.search_doc, 
             "search_neighbour_chunks": self.search_neighbour_chunks,
         }
         kwargs_default = {

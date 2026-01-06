@@ -121,14 +121,14 @@ async def agentic_rag(
     title_k: int = 3,
     chunk_k: int = 10,
     query_expand_k: int = 1,
-    max_search_count: int = 1,
+    max_iter: int = 1,
     _: None = Depends(require_auth),
     __: None = Depends(require_rate_limit),
 ):
     state1 = get_agent_state_default(chunk_index, 
         title_k, 
         chunk_k, 
-        max_search_count=max_search_count,
+        max_iter=max_iter,
         max_query_expand_k=query_expand_k, 
     )
     state1["question"] = txt_query

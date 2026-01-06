@@ -337,7 +337,7 @@ function getSettingsFromUI() {
   // Clamp values to valid ranges
   const chunkKValue = Number(chunkK.value || 10);
   const queryExpandKValue = Number(queryExpandK.value || 1);
-  const maxSearchCountValue = Number(maxSearchCount.value || 1);
+  const maxIterValue = Number(maxIter.value || 1);
   
   return {
     cloudBase: cloudBase.value.trim(),
@@ -346,7 +346,7 @@ function getSettingsFromUI() {
     chunkK: Math.max(1, Math.min(12, chunkKValue)),
     queryExpandK: Math.max(1, Math.min(3, queryExpandKValue)),
     chunkIndex: chunkIndex.value.trim() || null,
-    maxSearchCount: Math.max(1, Math.min(5, maxSearchCountValue)),
+    maxIter: Math.max(1, Math.min(5, maxIterValue)),
   };
 }
 
@@ -356,7 +356,7 @@ function applySettingsToUI(s) {
   chunkK.value = String(Number.isFinite(s.chunkK) ? s.chunkK : 10);
   queryExpandK.value = String(Number.isFinite(s.queryExpandK) ? s.queryExpandK : 1);
   chunkIndex.value = s.chunkIndex ?? "";
-  maxSearchCount.value = String(Number.isFinite(s.maxSearchCount) ? s.maxSearchCount : 1);
+  maxIter.value = String(Number.isFinite(s.maxIter) ? s.maxIter : 1);
 }
 
 function loadSettings() {
@@ -366,7 +366,7 @@ function loadSettings() {
     chunkK: 10,
     queryExpandK: 1,
     chunkIndex: "",
-    maxSearchCount: 1,
+    maxIter: 1,
   };
 
   let settings = defaults;
@@ -463,7 +463,7 @@ async function sendMessage() {
   url.searchParams.set("title_k", String(s.titleK));
   url.searchParams.set("chunk_k", String(s.chunkK));
   url.searchParams.set("query_expand_k", String(s.queryExpandK));
-  url.searchParams.set("max_search_count", String(s.maxSearchCount));
+  url.searchParams.set("max_iter", String(s.maxIter));
   // Add chunk_index if provided (title_index is computed from chunk_index on backend)
   if (s.chunkIndex) {
     url.searchParams.set("chunk_index", s.chunkIndex);
@@ -567,7 +567,7 @@ const titleK = document.getElementById("titleK");
 const chunkK = document.getElementById("chunkK");
 const queryExpandK = document.getElementById("queryExpandK");
 const chunkIndex = document.getElementById("chunkIndex");
-const maxSearchCount = document.getElementById("maxSearchCount");
+const maxIter = document.getElementById("maxIter");
 const statusPill = document.getElementById("statusPill");
 const saveBtn = document.getElementById("saveBtn");
 const resetBtn = document.getElementById("resetBtn");
@@ -602,15 +602,15 @@ queryExpandK.addEventListener("change", () => {
   if (value > 3) queryExpandK.value = "3";
 });
 
-maxSearchCount.addEventListener("input", () => {
-  const value = Number(maxSearchCount.value);
-  if (value < 1) maxSearchCount.value = "1";
-  if (value > 5) maxSearchCount.value = "5";
+maxIter.addEventListener("input", () => {
+  const value = Number(maxIter.value);
+  if (value < 1) maxIter.value = "1";
+  if (value > 5) maxIter.value = "5";
 });
-maxSearchCount.addEventListener("change", () => {
-  const value = Number(maxSearchCount.value);
-  if (value < 1) maxSearchCount.value = "1";
-  if (value > 5) maxSearchCount.value = "5";
+maxIter.addEventListener("change", () => {
+  const value = Number(maxIter.value);
+  if (value < 1) maxIter.value = "1";
+  if (value > 5) maxIter.value = "5";
 });
 
 // Auto-fetch token when base URL changes

@@ -7,7 +7,7 @@ class SearchConfig(TypedDict):
     chunk_k: int
     
 class AgenticConfig(TypedDict):
-    max_search_count: int
+    max_iter: int
 
 # 1. 定义状态结构
 class AgentState(TypedDict):
@@ -25,9 +25,9 @@ class AgentState(TypedDict):
 def get_agent_state_default(
     chunk_index: str = "miles_guo",
     title_k: int = 3,
-    chunk_k: int = 10,
-    max_search_count: int = 1,
-    max_query_expand_k: int = 1,
+    chunk_k: int = 12,
+    max_iter: int = 2,
+    max_query_expand_k: int = 2,
     ):
     """
     Get default AgentState dictionary with all fields initialized.
@@ -51,6 +51,6 @@ def get_agent_state_default(
         }, 
         "agentic_config": {
             "max_query_expand_k": max_query_expand_k,
-            "max_search_count": max_search_count,
+            "max_iter": max_iter,
         }
     }

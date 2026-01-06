@@ -22,7 +22,7 @@ def get_entry_prompt_and_format(question, query_context, agentic_config: dict):
 如果question中内容不全，则参考query_context中的内容进行扩展。
 例如：
 用户提问：如何做好人
-扩展：一个人应具备哪些道德品格，如何加以实践与培养
+扩展：["一个人应具备哪些道德品格", "如何加以实践与培养"]
 
 对于前三种类型，expanded_queries 设为原问题。"""
     

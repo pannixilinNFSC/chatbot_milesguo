@@ -30,9 +30,9 @@ class Edge:
         - If refine_query: loop back to rag_search_node for another iteration
         """
         agentic_config = state.get("agentic_config", {})
-        max_search_count = agentic_config.get("max_search_count", 3)
+        max_iter = agentic_config.get("max_iter", 3)
         search_count = state.get("search_count", 0)
-        exceeded_limit = search_count >= max_search_count
+        exceeded_limit = search_count >= max_iter
         
         # Check if we have search operations to execute (means we need to refine)
         search_ops = state.get("search_ops")
