@@ -353,20 +353,20 @@ function getSettingsFromUI() {
 function applySettingsToUI(s) {
   cloudBase.value = s.cloudBase ?? "";
   titleK.value = String(Number.isFinite(s.titleK) ? s.titleK : 3);
-  chunkK.value = String(Number.isFinite(s.chunkK) ? s.chunkK : 10);
+  chunkK.value = String(Number.isFinite(s.chunkK) ? s.chunkK : 12);
   queryExpandK.value = String(Number.isFinite(s.queryExpandK) ? s.queryExpandK : 1);
   chunkIndex.value = s.chunkIndex ?? "";
-  maxIter.value = String(Number.isFinite(s.maxIter) ? s.maxIter : 1);
+  maxIter.value = String(Number.isFinite(s.maxIter) ? s.maxIter : 2);
 }
 
 function loadSettings() {
   const defaults = {
     cloudBase: "https://us-central1-xixibaigao.cloudfunctions.net/chatbot-milesguo/agentic_rag",
     titleK: 3,
-    chunkK: 10,
+    chunkK: 12,
     queryExpandK: 1,
     chunkIndex: "",
-    maxIter: 1,
+    maxIter: 2,
   };
 
   let settings = defaults;

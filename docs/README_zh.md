@@ -9,6 +9,7 @@ RAG系统的通病是知识碎片化，由于所有的参考文本都是破碎�
 4. 并行使用query expansion替换sparse vector，不仅增加推理速度，降低推理成本，精度甚至高于使用vector search。理解用户意图扩展关键问法，比提高10%的召回率重要得多。
 5. 放弃reranker，现代LLM的成本降低，LLM本身的性能又足以充当reranker。把所有找回文本扔给LLM，使reranker在RAG系统中不再必要。
 
+## 重写了Agent RAG模块，实现自动多次检索
 
 
 ## 网站声明

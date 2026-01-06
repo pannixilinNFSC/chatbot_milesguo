@@ -41,7 +41,9 @@ The RAG system uses:
 - **Multi-model LLM**: Uses LiteLLM with fallback support (GPT-4o-mini, Gemini 2.0 Flash)
 - **Async processing**: Supports asynchronous API calls for better performance
 
-For detailed technical documentation about the RAG algorithm, workflow, document expansion techniques, and design decisions, see [docs/README_TECH.md](docs/README_TECH.md).
+For detailed technical documentation about the RAG algorithm, workflow, document expansion techniques, and design decisions, see [docs/README_RAG.md](docs/README_RAG.md).
+
+The project also includes an **Agentic RAG Pipeline** built with LangGraph that intelligently routes queries through different processing paths with iterative answer refinement. For detailed documentation about the agentic workflow, nodes, routing functions, and state management, see [docs/README_AGENTIC.md](docs/README_AGENTIC.md).
 
 ## Deployment
 
@@ -65,6 +67,8 @@ The project includes `main.py` which contains the FastAPI app for Cloud Function
 
 - [docs/README_zh.md](docs/README_zh.md) - 中文文档 (Chinese documentation)
 - [docs/README_TECH.md](docs/README_TECH.md) - Technical documentation and architecture details
+- [docs/README_RAG.md](docs/README_RAG.md) - RAG algorithm, workflow, and design decisions
+- [docs/README_AGENTIC.md](docs/README_AGENTIC.md) - Agentic RAG Pipeline documentation (LangGraph-based workflow)
 - [docs/README_API.md](docs/README_API.md) - API endpoints and usage
 - [docs/README_DATA.md](docs/README_DATA.md) - Data preparation guide and data_miles directory structure
 - [docs/README_GCLOUD_FUNCTIONS.md](docs/README_GCLOUD_FUNCTIONS.md) - Google Cloud Functions deployment (recommended)
