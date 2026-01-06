@@ -6,7 +6,7 @@ Reproduces tests from scripts/agentic.ipynb
 import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from lib.agentic.config import get_agent_state_default
-from lib.agentic.graph import Graph
+from lib.agentic.graph import AgenticGraph
 
 
 @pytest.fixture
@@ -60,10 +60,30 @@ def mock_call_llm_with_fallback():
             return {
                 "type_state": "valid_answer",
                 "refined_queries": [],
-                "valid_search_indices": []
+                "valid_search_indices": [],
+                "search_ops": []
             }
         
-        # Plain text response (rag_reply_node)
+        # RAG reply node: structured response with answer and valid_search_indices
+        elif response_format and response_format.get("json_schema", {}).get("name") == "rag_response_format":
+            prompt_lower = prompt.lower()
+            if "capital" in prompt_lower and "france" in prompt_lower:
+                return {
+                    "answer": "Based on the search results, the capital of France is Paris.",
+                    "valid_search_indices": [1]  # Include index 1 as valid
+                }
+            elif "photosynthesis" in prompt_lower:
+                return {
+                    "answer": "Photosynthesis is the process by which plants convert light energy into chemical energy, using carbon dioxide and water to produce glucose and oxygen.",
+                    "valid_search_indices": [1]  # Include index 1 as valid
+                }
+            else:
+                return {
+                    "answer": "Based on the search results: answer",
+                    "valid_search_indices": [1]  # Include index 1 as valid
+                }
+        
+        # Plain text response (fallback, should not be used with structured output)
         else:
             prompt_lower = prompt.lower()
             if "capital" in prompt_lower and "france" in prompt_lower:
@@ -99,6 +119,53 @@ def mock_elastic_mix():
                     "score": 0.9 - i * 0.1
                 })
             return search_results
+        
+        async def search_ops(self, ops, title_index, chunk_index, title_k=3, chunk_k=10):
+            """
+            Mock implementation of search_ops.
+            Processes a list of search operations and returns combined results.
+            """
+            search_results = []
+            index_counter = 1
+            
+            for op in ops:
+                op_type = op.get("type")
+                if op_type == "search_general":
+                    # Extract queries from query_list
+                    query_list = op.get("query_list", [])
+                    for query in query_list:
+                        search_results.append({
+                            "index": index_counter,
+                            "_id": f"result_{index_counter}",
+                            "content": f"Search result for query: {query}",
+                            "score": 0.9 - (index_counter - 1) * 0.1
+                        })
+                        index_counter += 1
+                elif op_type == "search_doc":
+                    # Extract query and doc_ids
+                    query = op.get("query", "")
+                    doc_ids = op.get("doc_ids", [])
+                    search_results.append({
+                        "index": index_counter,
+                        "_id": f"result_{index_counter}",
+                        "content": f"Search result for query: {query} in docs: {doc_ids}",
+                        "score": 0.9 - (index_counter - 1) * 0.1
+                    })
+                    index_counter += 1
+                elif op_type == "search_neighbour_chunks":
+                    # Extract doc_id, chunk_id, distance
+                    doc_id = op.get("doc_id", "")
+                    chunk_id = op.get("chunk_id", "")
+                    distance = op.get("distance", 1)
+                    search_results.append({
+                        "index": index_counter,
+                        "_id": f"result_{index_counter}",
+                        "content": f"Neighbour chunks for doc: {doc_id}, chunk: {chunk_id}, distance: {distance}",
+                        "score": 0.9 - (index_counter - 1) * 0.1
+                    })
+                    index_counter += 1
+            
+            return search_results
     
     return MockElasticMix
 
@@ -110,9 +177,11 @@ def workflow_with_mocks(mock_call_llm_with_fallback, mock_elastic_mix):
     
     Motivation: avoid repeating the same patch boilerplate in every test.
     """
-    with patch("lib.agentic.node.call_llm_with_fallback", side_effect=mock_call_llm_with_fallback), \
+    with patch("lib.agentic.nodes.entry_llm_node.call_llm_with_fallback", side_effect=mock_call_llm_with_fallback), \
+         patch("lib.agentic.nodes.rag_reply_node.call_llm_with_fallback", side_effect=mock_call_llm_with_fallback), \
+         patch("lib.agentic.nodes.reply_validation_node.call_llm_with_fallback", side_effect=mock_call_llm_with_fallback), \
          patch("lib.agentic.node.ElasticMix", new=mock_elastic_mix):
-        graph = Graph()
+        graph = AgenticGraph()
         workflow = graph.build_workflow()
         app = workflow.compile()
         yield app

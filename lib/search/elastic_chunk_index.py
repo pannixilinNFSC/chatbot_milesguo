@@ -204,12 +204,72 @@ class ElasticReadClientChunks(ElasticReadClientBase):
     def __init__(self):
         super().__init__()
         
+    async def get_neighbour_chunks(self, 
+                            index_name:str,
+                            doc_id: str,
+                            chunk_id: str,
+                            distance: int=2,
+        ):
+        """
+        Get neighbouring chunks within specified distance from a given chunk.
+        Example: chunk_id=10, distance=2 returns chunks with chunk_id [8, 9, 11, 12].
+        
+        Args:
+            index_name: Elasticsearch index name
+            doc_id: Document ID to filter chunks
+            chunk_id: Reference chunk ID (must be numeric)
+            distance: Number of chunks before/after to retrieve (default: 2)
+        
+        Returns:
+            List of chunk dictionaries sorted by chunk_id, empty list if chunk_id is not numeric
+        """
+        try:
+            chunk_id_int = int(chunk_id)
+        except ValueError:
+            logger.warning(f"chunk_id {chunk_id} is not numeric, cannot calculate neighbours")
+            return []
+        
+        target_chunk_ids = [str(i) for i in range(chunk_id_int - distance, chunk_id_int + distance + 1) if i != chunk_id_int]
+        if not target_chunk_ids:
+            return []
+        
+        query_body = {
+            "query": {
+                "bool": {
+                    "must": [
+                        {"term": {"doc_id": doc_id}},
+                        {"terms": {"chunk_id": target_chunk_ids}}
+                    ]
+                }
+            },
+            "sort": [{"chunk_id": {"order": "asc", "unmapped_type": "keyword"}}]
+        }
+        
+        search_response = await self.async_client.search(
+            index=index_name, body=query_body, size=len(target_chunk_ids)
+        )
+        
+        results = [hit["_source"].copy() for hit in search_response["hits"]["hits"]]
+        return results
+        
     async def search_chunks_naive(self, 
                             query: str, 
                             index_name:str,
                             k=10, 
                             doc_ids:list[str]=None,
-        ):
+        )->list[dict]:
+        """
+        Search chunks using multi-match query across text, doc_summary, and context fields.
+        
+        Args:
+            query: Search query string
+            index_name: Elasticsearch index name
+            k: Number of top results to return (default: 10)
+            doc_ids: Optional list of doc_ids to filter results (default: None)
+        
+        Returns:
+            List of dictionaries containing chunk data with 'score' field added
+        """
         multi_match_query = {
             "multi_match": {
                 "query": query,
@@ -226,20 +286,12 @@ class ElasticReadClientChunks(ElasticReadClientBase):
                 "query": {
                     "bool": {
                         "must": [multi_match_query],
-                        "filter": [
-                            {
-                                "terms": {
-                                    "doc_id": doc_ids
-                                }
-                            }
-                        ]
+                        "filter": [{"terms": {"doc_id": doc_ids}}]
                     }
                 }
             }
         else:
-            query_body = {
-                "query": multi_match_query
-            }
+            query_body = {"query": multi_match_query}
         
         search_response = await self.async_client.search(
             index=index_name,

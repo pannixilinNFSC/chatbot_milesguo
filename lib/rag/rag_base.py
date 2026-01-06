@@ -2,10 +2,10 @@ import json
 import copy
 import textwrap
 import asyncio
-#from lib.search.elastic_2steps import Elastic2Steps
+
 from lib.search.elastic_mix import ElasticMix
 from lib.rag.query_expand import QueryExpander
-from lib.llm.rag_prompt import build_rag_prompt, PROMPT_BASE
+from lib.rag.rag_prompt import build_rag_prompt, PROMPT_BASE
 from lib.llm.litellm_api import call_llm_with_fallback
 from lib.app_logger import get_logger
 
@@ -87,6 +87,11 @@ class RAGBase:
         logger.info("Query Context: %s", "\n".join(query_context))
         logger.info("Query: %s", query)
         logger.info("LLM Response: %s", textwrap.fill(llm_response, width=50))
+        # Convert search results to text only for logging to avoid NameError.
+        try:
+            search_results_txt = json.dumps(search_results, ensure_ascii=False)
+        except TypeError:
+            search_results_txt = str(search_results)
         logger.info("Search Results: %s", textwrap.fill(search_results_txt, width=50))
         logger.info("LLM Prompt: %s", textwrap.fill(prompt, width=50))
         

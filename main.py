@@ -137,7 +137,7 @@ async def agentic_rag(
     result = {
             "content": agentic_result["answer"],
             "search_results": agentic_result["search_results"],
-            "querys": agentic_result["historical_queries"],
+            "historical_search_ops": agentic_result["historical_search_ops"],
             "query_type": agentic_result["query_type"],
             "search_count": agentic_result["search_count"],
         }

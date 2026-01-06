@@ -1,23 +1,130 @@
 import asyncio
 import json
 import copy
-from lib.search.elastic_2steps import Elastic2Steps
-from lib.app_logger import get_logger
-logger = get_logger(__name__)
+from pydantic import BaseModel
 
+from lib.search.elastic_title_index import ElasticReadClientTitles
+from lib.search.elastic_chunk_index import ElasticReadClientChunks
+from lib.app_logger import get_logger
+
+logger = get_logger(__name__)
 
 class ElasticMix:
     def __init__(self):
-        self.elastic_2steps = Elastic2Steps()
+        self.client_title = ElasticReadClientTitles()
+        self.client_chunk = ElasticReadClientChunks()
         
-    async def search_naive(self, query, chunk_index, chunk_k=10):
-        search_results = await self.elastic_2steps.search_naive(query, chunk_index, k=chunk_k)
+    async def search_naive(self, 
+                           query, 
+                           chunk_index, 
+                           chunk_k=10, 
+                           doc_ids: list[str]=None):
+        """
+        Search chunks using multi-match query across text, doc_summary, and context fields.
+        """
+        chunk_hits = await self.client_chunk.search_chunks_naive(
+            query, 
+            chunk_index,
+            k=chunk_k, 
+            doc_ids=doc_ids, 
+        )
+        return chunk_hits
+    
+    async def search_neighbour_chunks(self, 
+                                      doc_id: str, 
+                                      chunk_id: str, 
+                                      chunk_index: str, 
+                                      distance: int=1, 
+                                      **kwargs, 
+        )->list[dict]:
+        """
+        Search neighbouring chunks within specified distance from a given chunk.
+        """
+        search_results = await self.client_chunk.get_neighbour_chunks(
+            chunk_index, doc_id, chunk_id, distance)
         return search_results
         
-    async def search_2steps(self, query, title_index, chunk_index, title_k=3, chunk_k=10):
-        search_results = await self.elastic_2steps.search_2steps(query, title_index, chunk_index, title_k=title_k, chunk_k=chunk_k)
-        return search_results
+    async def search_2steps(self, 
+                            query: str, 
+                            title_index: str, 
+                            chunk_index: str, 
+                            title_k: int=3, 
+                            chunk_k: int=10, 
+                            **kwargs, 
+        )->list[dict]:
+        """
+        Two-step search: first find relevant documents by title, then search chunks within those documents.
+        """
+        title_hits = await self.client_title.search_title_naive(
+            query, 
+            title_index,
+            k=title_k, 
+        )
+        doc_ids = [hit["doc_id"] for hit in title_hits]
+        chunk_hits = await self.client_chunk.search_chunks_naive(
+            query, 
+            chunk_index,
+            k=chunk_k, 
+            doc_ids=doc_ids, 
+        )
+        return chunk_hits
+    
+    async def search_1step_and_2steps(self, 
+                                      query_list: list[str], 
+                                      title_index: str, 
+                                      chunk_index: str, 
+                                      title_k: int=3, 
+                                      chunk_k: int=10, 
+                                      **kwargs, 
+        )->list[dict]:
+        """
+        Search using both 1-step and 2-step approaches.
+        """
+        tasks = []
+        tasks += [self.search_naive(query, chunk_index, chunk_k=chunk_k) 
+            for query in query_list]
+        tasks += [self.search_2steps(query, title_index, chunk_index, title_k=title_k, chunk_k=chunk_k)
+            for query in query_list]
+        results_list = await asyncio.gather(*tasks)
+        results = [item for sublist in results_list for item in sublist]
+        return results
+    
+    async def search_ops(self, 
+                         ops: list[dict], 
+                         title_index: str, 
+                         chunk_index: str, 
+                         title_k: int=3, 
+                         chunk_k: int=10, 
+        )->list[dict]:
+        """
+        Search using a list of operations.
+        """
+        ops_func_mapping = {
+            "search_general": self.search_1step_and_2steps, 
+            "search_doc": self.search_naive, 
+            "search_neighbour_chunks": self.search_neighbour_chunks,
+        }
+        kwargs_default = {
+            "title_index": title_index,
+            "chunk_index": chunk_index,
+            "title_k": title_k,
+            "chunk_k": chunk_k,
+        }
         
+        tasks = []
+        for op in ops:
+            type1 = op["type"]
+            kwargs1 = kwargs_default.copy()
+            kwargs1.update(op)
+            
+            func1 = ops_func_mapping[type1]
+            tasks += [func1(**kwargs1)]
+        
+        results_list = await asyncio.gather(*tasks)
+        search_results = [item for sublist in results_list for item in sublist]
+        search_results = self.postprocess_search_results(search_results)
+        return search_results
+    
     async def search(self, 
                      query_list, 
                      title_index, 
@@ -25,33 +132,20 @@ class ElasticMix:
                      title_k=3, 
                      chunk_k=10, 
         ) -> list[dict]:
-        search_results = []
-        # Parallelize search operations for all queries
-        async def search_per_query(q):
-            # Run both search_naive and search_2steps in parallel for each query
-            naive_results, steps_results = await asyncio.gather(
-                self.search_naive(q, chunk_index, chunk_k=chunk_k),
-                self.search_2steps(q, title_index, chunk_index, title_k=title_k, chunk_k=chunk_k)
-            )
-            return naive_results + steps_results
         
-        # Execute all queries in parallel
-        all_results = await asyncio.gather(*[search_per_query(q) for q in query_list])
-        # Flatten the results from all queries
-        search_results = [item for sublist in all_results for item in sublist]
-        logger.info("Total search results: %s", len(search_results))
+        ops = [
+            {
+                "type": "search_general",
+                "query_list": query_list,
+            }
+        ]
         
-        # reduce cost by deduplicating search results
-        search_results = self.deduplicate_search_results(search_results)
-        logger.info("Deduplicated search results: %s", len(search_results))
-        
-        # Add index to each search result
-        for index, result in enumerate(search_results, start=1):
-            result["index"] = index
+        search_results = await self.search_ops(
+            ops, title_index, chunk_index, title_k=title_k, chunk_k=chunk_k)
         
         return search_results
     
-    def deduplicate_search_results(self, search_results: list[dict]) -> list[dict]:
+    def postprocess_search_results(self, search_results: list[dict]) -> list[dict]:
         """
         Remove duplicate field values from search results.
         If a field value appears in a later element that was already seen in an earlier element,
@@ -102,5 +196,11 @@ class ElasticMix:
                     seen_values[field_name].add(field_value_str)
             
             deduped.append(result_copy)
+            
+        logger.info("Deduplicated search results: %s", len(deduped))
+        
+        # Add index to each search result
+        for index, result in enumerate(deduped, start=1):
+            result["index"] = index
         
         return deduped

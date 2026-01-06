@@ -25,7 +25,7 @@ def rag_with_mocks(mock_prompt_base):
     # Mock router before any imports that might trigger it
     mock_router = AsyncMock()
     with patch("lib.llm.litellm_api.get_litellm_fallback_router", return_value=mock_router), \
-         patch("lib.rag.prompt.PROMPT_BASE", mock_prompt_base), \
+         patch("lib.rag.rag_prompt.PROMPT_BASE", mock_prompt_base), \
          patch("lib.rag.rag_base.ElasticMix") as elastic_cls, \
          patch("lib.rag.rag_base.QueryExpander") as expander_cls:
         elastic_mix = AsyncMock()

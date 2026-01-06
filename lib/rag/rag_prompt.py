@@ -47,3 +47,4 @@ def build_rag_prompt(query: str,
     prompt += f"""以下是参考文本: {search_results_txt} \n"""
     prompt += f"""{prompt_after}"""
     return prompt
+

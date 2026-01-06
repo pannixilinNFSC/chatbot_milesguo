@@ -15,8 +15,8 @@ class AgentState(TypedDict):
     query_context: List[str] # query context for RAG search
     answer: str # final answer
     query_type: str  # "greeting", "insult", "unclear", "need_rag"
-    historical_queries: List[str] # all queries has been used
-    expanded_queries: List[str] # next queries for RAG search
+    historical_search_ops: List[str] # all search ops has been used
+    search_ops: List[str] # next search ops for RAG search
     search_results: List[dict] # search_results for RAG answer
     search_count: int # turns of RAG search
     search_config: SearchConfig # search config
@@ -39,8 +39,8 @@ def get_agent_state_default(
         "query_context": [],
         "answer": "",
         "query_type": "",
-        "historical_queries": [],
-        "expanded_queries": [],
+        "historical_search_ops": [],
+        "search_ops": [],
         "search_results": [],
         "search_count": 0,
         "search_config": {

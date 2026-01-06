@@ -22,7 +22,7 @@ function nowTime() {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function addMessage({ role, text, sources = null, prompt = null, querys = null, queryType = null, searchCount = null, thinking = false, updateBubble = null }) {
+function addMessage({ role, text, sources = null, prompt = null, querys = null, queryType = null, searchCount = null, historicalSearchOps = null, thinking = false, updateBubble = null }) {
   // If updateBubble is provided, update existing message instead of creating new one
   if (updateBubble) {
     const pre = updateBubble.querySelector(".msg");
@@ -99,6 +99,28 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
         const d = document.createElement("details");
         d.open = false;
         d.innerHTML = `<summary>Search Count</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em">${searchCount}</pre>`;
+        updateBubble.appendChild(d);
+      }
+
+      if (historicalSearchOps && Array.isArray(historicalSearchOps) && historicalSearchOps.length > 0) {
+        const d = document.createElement("details");
+        d.open = false;
+        const opsText = historicalSearchOps.map((op, i) => {
+          if (typeof op === 'object' && op !== null) {
+            const opType = op.type || 'unknown';
+            if (opType === 'search_general' && Array.isArray(op.query_list)) {
+              return `[${i + 1}] ${opType}: ${op.query_list.join(', ')}`;
+            } else if (opType === 'search_doc') {
+              return `[${i + 1}] ${opType}: query="${op.query || ''}", doc_ids=[${(op.doc_ids || []).join(', ')}]`;
+            } else if (opType === 'search_neighbour_chunks') {
+              return `[${i + 1}] ${opType}: doc_id="${op.doc_id || ''}", chunk_id="${op.chunk_id || ''}", distance=${op.distance || 1}`;
+            } else {
+              return `[${i + 1}] ${opType}: ${JSON.stringify(op, null, 2)}`;
+            }
+          }
+          return `[${i + 1}] ${String(op)}`;
+        }).join('\n');
+        d.innerHTML = `<summary>Historical Search Ops (${historicalSearchOps.length})</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em;max-height:300px;overflow:auto">${opsText}</pre>`;
         updateBubble.appendChild(d);
       }
 
@@ -189,6 +211,27 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
       const d = document.createElement("details");
       d.open = false;
       d.innerHTML = `<summary>Search Count</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em">${searchCount}</pre>`;
+      bubble.appendChild(d);
+    }
+    if (historicalSearchOps && Array.isArray(historicalSearchOps) && historicalSearchOps.length > 0) {
+      const d = document.createElement("details");
+      d.open = false;
+      const opsText = historicalSearchOps.map((op, i) => {
+        if (typeof op === 'object' && op !== null) {
+          const opType = op.type || 'unknown';
+          if (opType === 'search_general' && Array.isArray(op.query_list)) {
+            return `[${i + 1}] ${opType}: ${op.query_list.join(', ')}`;
+          } else if (opType === 'search_doc') {
+            return `[${i + 1}] ${opType}: query="${op.query || ''}", doc_ids=[${(op.doc_ids || []).join(', ')}]`;
+          } else if (opType === 'search_neighbour_chunks') {
+            return `[${i + 1}] ${opType}: doc_id="${op.doc_id || ''}", chunk_id="${op.chunk_id || ''}", distance=${op.distance || 1}`;
+          } else {
+            return `[${i + 1}] ${opType}: ${JSON.stringify(op, null, 2)}`;
+          }
+        }
+        return `[${i + 1}] ${String(op)}`;
+      }).join('\n');
+      d.innerHTML = `<summary>Historical Search Ops (${historicalSearchOps.length})</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em;max-height:300px;overflow:auto">${opsText}</pre>`;
       bubble.appendChild(d);
     }
     if (prompt) {
@@ -496,7 +539,8 @@ async function sendMessage() {
     const querys = Array.isArray(data?.querys) ? data.querys : null;
     const queryType = data?.query_type ?? null;
     const searchCount = data?.search_count ?? null;
-    addMessage({ role: "assistant", text: content, sources, prompt, querys, queryType, searchCount, updateBubble: thinkingBubble });
+    const historicalSearchOps = Array.isArray(data?.historical_search_ops) ? data.historical_search_ops : null;
+    addMessage({ role: "assistant", text: content, sources, prompt, querys, queryType, searchCount, historicalSearchOps, updateBubble: thinkingBubble });
     // Keep the last 3 Q&A pairs (6 messages) for context
     queryContext.push(`用户: ${text}`, `助手: ${content}`);
     // Keep only the last 6 messages (3 rounds of Q&A)

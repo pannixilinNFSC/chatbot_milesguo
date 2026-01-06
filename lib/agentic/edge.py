@@ -29,15 +29,16 @@ class Edge:
         - If valid_answer or exceeded_limit: go to END (answer is ready)
         - If refine_query: loop back to rag_search_node for another iteration
         """
-        max_search_count = state.get("max_search_count", 3)
+        agentic_config = state.get("agentic_config", {})
+        max_search_count = agentic_config.get("max_search_count", 3)
         search_count = state.get("search_count", 0)
         exceeded_limit = search_count >= max_search_count
         
-        # Check if we have refined queries (means we need to refine)
-        expanded_queries = state.get("expanded_queries", [])
+        # Check if we have search operations to execute (means we need to refine)
+        search_ops = state.get("search_ops")
         
-        if exceeded_limit or len(expanded_queries) == 0:
-            # No more queries to search, answer is ready
+        if exceeded_limit or search_ops is None or len(search_ops) == 0:
+            # No more search operations to execute, answer is ready
             return END
         else:
             # Need to refine, loop back to search

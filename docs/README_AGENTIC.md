@@ -53,9 +53,9 @@ The workflow consists of 4 main nodes and 2 routing functions:
 
 ### `build_workflow()`
 
-The main function that constructs and returns a LangGraph `StateGraph` instance.
+The main method that constructs and returns a LangGraph `StateGraph` instance.
 
-**Location**: `lib.agentic.graph.build_workflow()`
+**Location**: `lib.agentic.graph.AgenticGraph.build_workflow()`
 
 **Returns**: `StateGraph[AgentState]` - A compiled workflow graph ready for execution
 
@@ -68,9 +68,10 @@ The main function that constructs and returns a LangGraph `StateGraph` instance.
 
 **Usage**:
 ```python
-from lib.agentic.graph import build_workflow
+from lib.agentic.graph import AgenticGraph
 
-workflow = build_workflow()
+graph = AgenticGraph()
+workflow = graph.build_workflow()
 app = workflow.compile()
 result = app.invoke({"question": "What is the capital of France?"})
 ```
@@ -105,7 +106,7 @@ result = app.invoke({"question": "What is the capital of France?"})
 - **Validation States**:
   - `"valid_answer"`: Answer is sufficient, proceed to end
   - `"refine_query"`: Answer needs improvement, generate refined queries
-- **Safety**: Enforces `max_search_count` limit (default: 3) to prevent infinite loops
+- **Safety**: Enforces `max_search_count` limit (default: 1, configurable via `agentic_config`) to prevent infinite loops
 - **Output**: Updates `expanded_queries`, `historical_queries`, `answer`, and `search_results`
 
 ### Routing Functions
@@ -121,7 +122,7 @@ result = app.invoke({"question": "What is the capital of France?"})
 - **Function**: `lib.agentic.edge.route_after_validation`
 - **Location**: After `reply_validation` node
 - **Logic**:
-  - If `exceeded_limit` or no `expanded_queries` → route to `END`
+  - If `search_count >= max_search_count` (from `agentic_config`) or `len(expanded_queries) == 0` → route to `END`
   - Otherwise → route back to `rag_search` for refinement loop
 
 ## State Schema
@@ -131,12 +132,15 @@ The workflow uses `AgentState` (defined in `lib.agentic.config`):
 ```python
 class AgentState(TypedDict):
     question: str                    # Initial user query
+    query_context: List[str]         # Query context for RAG search
     answer: str                      # Final answer
     query_type: str                  # "greeting", "insult", "unclear", "need_rag"
     historical_queries: List[str]    # All queries used in search iterations
     expanded_queries: List[str]      # Next queries for RAG search
     search_results: List[dict]       # Search results for RAG answer generation
     search_count: int                # Number of RAG search iterations performed
+    search_config: SearchConfig      # Search configuration (title_index, chunk_index, title_k, chunk_k)
+    agentic_config: AgenticConfig    # Agentic configuration (max_search_count, max_query_expand_k)
 ```
 
 ## Workflow Execution Flow
@@ -156,18 +160,26 @@ class AgentState(TypedDict):
 ## Example Usage
 
 ```python
-from lib.agentic.graph import build_workflow
+from lib.agentic.graph import AgenticGraph
+from lib.agentic.config import get_agent_state_default
 
 # Build and compile the workflow
-workflow = build_workflow()
+graph = AgenticGraph()
+workflow = graph.build_workflow()
 app = workflow.compile()
 
-# Invoke with a user question
-result = app.invoke({
-    "question": "What is the capital of France?",
-    "historical_queries": [],
-    "max_search_count": 3
-})
+# Initialize state with default values
+state = get_agent_state_default(
+    chunk_index="miles_guo",
+    title_k=3,
+    chunk_k=10,
+    max_search_count=3,
+    max_query_expand_k=1
+)
+state["question"] = "What is the capital of France?"
+
+# Invoke with the state
+result = app.invoke(state)
 
 # Access the final answer
 print(result["answer"])
