@@ -30,7 +30,7 @@ async def entry_llm_node(state: AgentState) -> AgentState:
     if query_type == "need_rag":
         # For RAG queries: empty answer triggers RAG flow, use LLM-generated expanded queries
         answer = ""
-        expanded_queries = llm_output["expanded_queries"]
+        expanded_queries = [question] + llm_output["expanded_queries"]
         search_ops = [{"type": "search_general", "query_list": expanded_queries}]
     else:
         # For direct answer types: use LLM-generated answer, keep original question for tracking

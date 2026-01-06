@@ -34,10 +34,10 @@ def get_agentic_prompt_and_format(
    - search_ops 设为空数组
 
 2. **refine_query**：如果答案不够充分、不准确、缺少关键信息，需要尝试对潜在的缺失的信息进一步检索，则返回此状态
-   - 生成 search_ops 数组，每个元素是一个搜索操作对象：
+   - 生成 search_ops 数组，包含一个或多个元素，每个元素是一个搜索操作对象：
      * 类型可以是 "search_general"（通用搜索，需要 query_list 字段）
-     * 类型可以是 "search_doc"（文档内搜索，需要 query_list 和 doc_id 字段）
-     * 类型可以是 "search_neighbour_chunks"（邻近块搜索，需要 doc_id、chunk_id、distance 字段）
+     * 类型可以是 "search_doc"（对于摘要显示值得深入挖掘的文档再次搜索，需要 query_list 和 doc_id 字段）
+     * 类型可以是 "search_neighbour_chunks"（对于内容不全的chunk，进行邻近块搜索，需要 doc_id、chunk_id、distance 字段）
      * 根据细化查询的内容，选择合适的搜索类型
 
 请严格按照 JSON Schema 格式返回结果。"""
