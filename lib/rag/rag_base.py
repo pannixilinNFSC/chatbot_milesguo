@@ -121,7 +121,7 @@ class RAGBase:
                 - type: "search" | "content" | "metadata" | "done"
                 - data: chunk data (str for content, dict for others)
         """
-        # step 1: search
+        # step 1: search (don't yield results, they're too large)
         search_results, expanded_queries = await self.search(
             query, 
             title_index,
@@ -132,27 +132,10 @@ class RAGBase:
             query_expand_k=query_expand_k,
         )
         
-        # Yield search results
-        yield {
-            "type": "search",
-            "data": {
-                "search_results": search_results,
-                "querys": [query] + expanded_queries,
-            }
-        }
-        
         # step 2: generate prompt
         prompt = build_rag_prompt(query, search_results, query_context, prompt_before, prompt_after)
         
-        # Yield metadata
-        yield {
-            "type": "metadata",
-            "data": {
-                "prompt": prompt,
-            }
-        }
-        
-        # step 3: stream LLM response
+        # step 3: stream LLM response only (don't yield search results or metadata immediately)
         full_content = ""
         async for chunk in call_llm_stream_with_fallback(prompt, model_name="gpt"):
             full_content += chunk
@@ -166,7 +149,7 @@ class RAGBase:
         logger.info("Query: %s", query)
         logger.info("LLM Response: %s", textwrap.fill(full_content, width=50))
         
-        # Yield completion
+        # Yield completion with all data (search results will be shown in collapsed details at the end)
         yield {
             "type": "done",
             "data": {

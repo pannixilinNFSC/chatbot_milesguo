@@ -423,7 +423,7 @@ function applySettingsToUI(s) {
 
 function loadSettings() {
   const defaults = {
-    cloudBase: "https://us-central1-xixibaigao.cloudfunctions.net/chatbot-milesguo/chatbot",
+    cloudBase: "https://us-central1-xixibaigao.cloudfunctions.net/chatbot-milesguo/chatbot_stream",
     titleK: 3,
     chunkK: 10,
     queryExpandK: 1,
@@ -519,20 +519,17 @@ async function sendMessage() {
   userInput.value = "";
 
   // Determine if we should use streaming endpoint
-  // Check if endpoint ends with /chatbot_stream or try to use streaming version
+  // Only use streaming if the URL explicitly contains /chatbot_stream
+  // User must explicitly specify streaming endpoint in the URL
   let useStreaming = false;
-  let streamEndpoint = null;
   
-  if (endpoint.includes("chatbot_stream")) {
+  // Check if URL explicitly contains streaming endpoint
+  if (endpoint.includes("/chatbot_stream")) {
     useStreaming = true;
-    streamEndpoint = endpoint;
-  } else if (endpoint.endsWith("/chatbot")) {
-    useStreaming = true;
-    streamEndpoint = endpoint.replace("/chatbot", "/chatbot_stream");
   }
 
-  // Use the full URL directly (user can specify complete endpoint like /chatbot)
-  const url = new URL(streamEndpoint || endpoint);
+  // Use the full URL directly (user can specify complete endpoint like /chatbot or /chatbot_stream)
+  const url = new URL(endpoint);
   url.searchParams.set("txt_query", text);
   url.searchParams.set("title_k", String(s.titleK));
   url.searchParams.set("chunk_k", String(s.chunkK));
@@ -583,7 +580,7 @@ async function sendMessage() {
       console.warn("No auth token available - request may fail if backend requires authentication");
     }
     
-    if (useStreaming && streamEndpoint) {
+    if (useStreaming) {
       // Use streaming response with EventSource-like handling
       await handleStreamingResponse(url.toString(), headers, controller, thinkingBubble, text);
     } else {
@@ -642,10 +639,19 @@ async function handleStreamingResponse(url, headers, controller, thinkingBubble,
     throw new Error("Message element not found");
   }
 
-  // Remove thinking indicator
+  // Remove thinking indicator and prepare for streaming
   msgElement.innerHTML = "";
   msgElement.classList.remove("typing");
   msgElement.classList.add("typing");
+  
+  // Update status to show streaming
+  const statusIndicator = thinkingBubble.querySelector(".progressIndicator");
+  if (statusIndicator) {
+    statusIndicator.innerHTML = `
+      <div class="progressDot"></div>
+      <span class="progressText">Generating response...</span>
+    `;
+  }
 
   try {
     while (true) {
@@ -665,21 +671,8 @@ async function handleStreamingResponse(url, headers, controller, thinkingBubble,
             const data = JSON.parse(jsonStr);
             const { type, data: chunkData } = data;
 
-            if (type === "search") {
-              // Update status
-              const statusIndicator = thinkingBubble.querySelector(".progressIndicator");
-              if (statusIndicator) {
-                statusIndicator.innerHTML = `
-                  <div class="progressDot"></div>
-                  <span class="progressText">Found ${chunkData.search_results?.length || 0} source${chunkData.search_results?.length !== 1 ? 's' : ''}</span>
-                `;
-              }
-              sources = chunkData.search_results || [];
-              querys = chunkData.querys || null;
-            } else if (type === "metadata") {
-              prompt = chunkData.prompt || null;
-            } else if (type === "content") {
-              // Stream content chunks
+            if (type === "content") {
+              // Stream content chunks only
               fullContent += chunkData;
               msgElement.textContent = fullContent;
               messages.scrollTop = messages.scrollHeight;
