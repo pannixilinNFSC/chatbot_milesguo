@@ -35,6 +35,7 @@ async def agentic_rag_stream(
         final_state = streaming_state.copy()
         accumulated_content = ""
         entry_llm_completed = False
+        last_reply_iteration = -1  # Track which iteration of rag_reply we're on
         
         # Stream graph execution with updates and custom events
         async for chunk in graph.astream(
@@ -67,6 +68,19 @@ async def agentic_rag_stream(
                             iteration_data = {"status": status, "node": node_name}
                             if node_name == "rag_search" and search_count > 0:
                                 iteration_data["iteration"] = search_count
+                            
+                            # Reset accumulated content when a new rag_reply iteration starts
+                            if node_name == "rag_reply":
+                                current_reply_iteration = search_count  # rag_reply follows rag_search
+                                if current_reply_iteration > last_reply_iteration:
+                                    # New iteration started, clear previous content
+                                    accumulated_content = ""
+                                    last_reply_iteration = current_reply_iteration
+                                    # Send reset signal to frontend
+                                    yield {
+                                        "type": "content_reset",
+                                        "data": {"iteration": current_reply_iteration}
+                                    }
                             
                             yield {
                                 "type": "status",

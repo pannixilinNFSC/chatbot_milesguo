@@ -807,6 +807,16 @@ async function handleStreamingResponse(url, headers, controller, thinkingBubble,
                   <span class="progressText">${statusText}</span>
                 `;
               }
+            } else             if (type === "content_reset") {
+              // Reset content when new iteration starts
+              fullContent = "";
+              msgElement.textContent = "";
+              if (statusIndicator && chunkData.iteration !== undefined) {
+                statusIndicator.innerHTML = `
+                  <div class="progressDot"></div>
+                  <span class="progressText">Search iteration ${chunkData.iteration + 1}: generating</span>
+                `;
+              }
             } else if (type === "content") {
               // Stream content chunks
               fullContent += chunkData;
