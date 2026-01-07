@@ -56,6 +56,20 @@ body {
   color: var(--text);
 }
 
+.switchLink {
+  background: linear-gradient(180deg, rgba(122, 162, 255, 0.25), rgba(122, 162, 255, 0.15));
+  border-color: rgba(122, 162, 255, 0.4);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(122, 162, 255, 0.2);
+}
+
+.switchLink:hover {
+  background: linear-gradient(180deg, rgba(122, 162, 255, 0.35), rgba(122, 162, 255, 0.25));
+  border-color: rgba(122, 162, 255, 0.5);
+  box-shadow: 0 4px 12px rgba(122, 162, 255, 0.3);
+  transform: translateY(-1px);
+}
+
 .app {
   max-width: 1100px;
   margin: 0 auto;

@@ -1,6 +1,7 @@
 import os
 import json
 import uvicorn
+from typing import AsyncGenerator
 from fastapi import FastAPI, HTTPException, Depends, Query
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
@@ -22,6 +23,37 @@ agentic_base = AgenticGraph().build_workflow().compile()
 
 setup_cors(app)
 app.add_exception_handler(Exception, global_exception_handler)
+
+# SSE streaming helpers
+SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",  # Disable buffering in nginx
+}
+
+def format_sse_chunk(chunk: dict) -> str:
+    """Format a dictionary chunk as Server-Sent Event."""
+    data = json.dumps(chunk, ensure_ascii=False)
+    return f"data: {data}\n\n"
+
+async def wrap_stream_with_error_handling(
+    stream_generator,
+    error_context: str,
+    extra_log_data: dict = None,
+) -> AsyncGenerator[str, None]:
+    """Wrap an async generator with error handling and SSE formatting."""
+    try:
+        async for chunk in stream_generator:
+            yield format_sse_chunk(chunk)
+    except Exception as e:
+        logger.error(
+            f"Error in {error_context}: %s",
+            e,
+            exc_info=True,
+            extra=extra_log_data or {},
+        )
+        error_chunk = {"type": "error", "data": {"error": str(e)}}
+        yield format_sse_chunk(error_chunk)
 
 @app.get("/")
 async def root():
@@ -129,44 +161,26 @@ async def chatbot_stream(
 ):
     """Stream chatbot response using Server-Sent Events (SSE)."""
     title_index = f"{chunk_index}_titles"
+    query_context_limited = query_context[-4:] if query_context else []
     
-    async def generate_stream():
-        try:
-            # Limit query_context to maximum 6 items
-            query_context_limited = query_context[-4:] if query_context else []
-            
-            async for chunk in rag_base.chat_stream(
-                txt_query, 
-                title_index,
-                chunk_index,
-                query_context=query_context_limited,
-                title_k=title_k, 
-                chunk_k=chunk_k,
-                query_expand_k=query_expand_k,
-            ):
-                # Format as Server-Sent Event
-                data = json.dumps(chunk, ensure_ascii=False)
-                yield f"data: {data}\n\n"
-                
-        except Exception as e:
-            # Log error
-            logger.error("Error in chatbot_stream: %s", e, exc_info=True, extra={"txt_query": txt_query})
-            # Send error as SSE
-            error_chunk = {
-                "type": "error",
-                "data": {"error": str(e)}
-            }
-            data = json.dumps(error_chunk, ensure_ascii=False)
-            yield f"data: {data}\n\n"
+    stream = rag_base.chat_stream(
+        txt_query,
+        title_index,
+        chunk_index,
+        query_context=query_context_limited,
+        title_k=title_k,
+        chunk_k=chunk_k,
+        query_expand_k=query_expand_k,
+    )
     
     return StreamingResponse(
-        generate_stream(),
+        wrap_stream_with_error_handling(
+            stream,
+            "chatbot_stream",
+            {"txt_query": txt_query},
+        ),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # Disable buffering in nginx
-        }
+        headers=SSE_HEADERS,
     )
 
 @app.get("/agentic_rag")
@@ -213,41 +227,25 @@ async def agentic_rag_stream_endpoint(
 ):
     """Stream agentic RAG response using Server-Sent Events (SSE)."""
     state1 = get_agent_state_default(
-        chunk_index, 
-        title_k, 
-        chunk_k, 
+        chunk_index,
+        title_k,
+        chunk_k,
         max_iter=max_iter,
-        max_query_expand_k=query_expand_k, 
+        max_query_expand_k=query_expand_k,
     )
     state1["question"] = txt_query
     state1["query_context"] = query_context[-4:] if query_context else []
     
-    async def generate_stream():
-        try:
-            async for chunk in agentic_rag_stream(agentic_base, state1):
-                # Format as Server-Sent Event
-                data = json.dumps(chunk, ensure_ascii=False)
-                yield f"data: {data}\n\n"
-                
-        except Exception as e:
-            # Log error
-            logger.error("Error in agentic_rag_stream: %s", e, exc_info=True, extra={"txt_query": txt_query})
-            # Send error as SSE
-            error_chunk = {
-                "type": "error",
-                "data": {"error": str(e)}
-            }
-            data = json.dumps(error_chunk, ensure_ascii=False)
-            yield f"data: {data}\n\n"
+    stream = agentic_rag_stream(agentic_base, state1)
     
     return StreamingResponse(
-        generate_stream(),
+        wrap_stream_with_error_handling(
+            stream,
+            "agentic_rag_stream",
+            {"txt_query": txt_query},
+        ),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # Disable buffering in nginx
-        }
+        headers=SSE_HEADERS,
     )
 
 

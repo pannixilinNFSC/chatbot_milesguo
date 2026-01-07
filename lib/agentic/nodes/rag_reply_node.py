@@ -2,6 +2,7 @@ from lib.agentic.config import AgentState
 from lib.agentic.prompts import get_rag_prompt_and_format
 from lib.llm.litellm_api import call_llm_with_fallback, call_llm_stream_with_fallback
 from contextlib import contextmanager
+import re
 
 
 @contextmanager
@@ -17,6 +18,24 @@ def _get_stream_writer():
     except (ImportError, RuntimeError, AttributeError, TypeError):
         # Not in LangGraph execution context or writer not available
         yield None
+
+
+def _extract_indices_from_answer(answer: str) -> set[int]:
+    """
+    Extract index references from answer text (e.g., [1][2] -> {1, 2}).
+    
+    Args:
+        answer: Answer text that may contain index references like [1][2]
+        
+    Returns:
+        set: Set of integer indices found in the answer
+    """
+    # Match patterns like [1], [2], [1][2], etc.
+    # This regex finds all [number] patterns
+    pattern = r'\[(\d+)\]'
+    matches = re.findall(pattern, answer)
+    indices = {int(m) for m in matches}
+    return indices
 
 
 async def _generate_answer_with_streaming(
@@ -53,16 +72,25 @@ async def _generate_answer_with_streaming(
             pass
     
     # After streaming, get structured output to filter search results
-    # Use the streamed answer as a hint, but get structured output for indices
+    # Extract indices from the streamed answer (what user actually sees) first
+    streamed_indices = _extract_indices_from_answer(full_answer)
+    
     try:
         llm_output = await call_llm_with_fallback(prompt_rag, model_name="gpt", response_format=rag_response_format)
-        # Prefer structured output answer, but fallback to streamed if needed
-        answer = llm_output.get("answer", full_answer)
-        valid_indices = set(llm_output.get("valid_search_indices", []))
-    except Exception:
-        # Fallback: use streamed answer and keep all search results
+        structured_indices = set(llm_output.get("valid_search_indices", []))
+        
+        # Merge indices: combine structured output indices with indices found in streamed answer
+        # This ensures that if the streamed answer mentions [1][2], those sources are kept
+        # even if structured output didn't capture them correctly
+        valid_indices = structured_indices | streamed_indices
+        
+        # Use streamed answer (what user actually saw) as the final answer
+        # This ensures consistency between what's displayed and what's filtered
         answer = full_answer
-        valid_indices = set()
+    except Exception:
+        # Fallback: use streamed answer and extract indices from it
+        answer = full_answer
+        valid_indices = streamed_indices
     
     return answer, valid_indices
 
@@ -98,12 +126,18 @@ async def rag_reply_node(state: AgentState) -> AgentState:
                 # Fallback to non-streaming execution if writer not available
                 llm_output = await call_llm_with_fallback(prompt_rag, model_name="gpt", response_format=rag_response_format)
                 answer = llm_output["answer"]
-                valid_indices = set(llm_output.get("valid_search_indices", []))
+                structured_indices = set(llm_output.get("valid_search_indices", []))
+                # Also extract indices from answer text to ensure consistency
+                answer_indices = _extract_indices_from_answer(answer)
+                valid_indices = structured_indices | answer_indices
     else:
         # Non-streaming execution (default)
         llm_output = await call_llm_with_fallback(prompt_rag, model_name="gpt", response_format=rag_response_format)
         answer = llm_output["answer"]
-        valid_indices = set(llm_output.get("valid_search_indices", []))
+        structured_indices = set(llm_output.get("valid_search_indices", []))
+        # Also extract indices from answer text to ensure consistency
+        answer_indices = _extract_indices_from_answer(answer)
+        valid_indices = structured_indices | answer_indices
     
     # Filter search results: keep only those with indices mentioned in answer
     # valid_search_indices contains reference numbers from answer (e.g., "1", "2" from [1][2])
