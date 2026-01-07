@@ -89,3 +89,67 @@ async def call_llm(str1,
             logging.warning(f"Failed to parse structured output as JSON: {e}. Returning raw string.")
             
     return x
+
+async def call_llm_stream(str1, 
+                         router=None, 
+                         model_name="openai/gpt-4o", 
+                         response_format=None, 
+                         kwargs={}):
+    """
+    Stream LLM response as async generator yielding chunks.
+    
+    Yields:
+        str: Content chunks from the LLM stream
+    """
+    acompletion1 = router.acompletion if router else acompletion
+    stream = await acompletion1(
+        model=model_name,
+        messages=[{"role": "user", "content": str1}], 
+        response_format=response_format,
+        stream=True,
+        **kwargs, 
+    )
+    
+    async for chunk in stream:
+        if chunk.choices and len(chunk.choices) > 0:
+            delta = chunk.choices[0].delta
+            if delta and delta.content:
+                yield delta.content
+
+async def call_llm_stream_with_fallback(str1, 
+                                        model_name="gpt", 
+                                        response_format=None):
+    """
+    Stream LLM response with fallback support.
+    
+    Yields:
+        str: Content chunks from the LLM stream
+    """
+    router = get_litellm_fallback_router()
+    kwargs = {"temperature": 0.0}
+    
+    try:
+        async for chunk in call_llm_stream(
+            str1, 
+            router, 
+            model_name, 
+            response_format, 
+            kwargs
+        ):
+            yield chunk
+    except Exception as e:
+        # If primary model fails, try fallback
+        fallback_model = "gemini" if model_name == "gpt" else "gpt"
+        logging.warning(f"Primary model {model_name} failed, trying fallback {fallback_model}: {e}")
+        try:
+            async for chunk in call_llm_stream(
+                str1, 
+                router, 
+                fallback_model, 
+                response_format, 
+                kwargs
+            ):
+                yield chunk
+        except Exception as fallback_error:
+            logging.error(f"Both models failed: {fallback_error}")
+            raise

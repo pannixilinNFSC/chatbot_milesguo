@@ -2,7 +2,9 @@ import os
 import json
 import uvicorn
 from fastapi import FastAPI, HTTPException, Depends, Query
+from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
+import asyncio
 from lib.rag.rag_base import RAGBase
 from lib.agentic.graph import AgenticGraph
 from lib.app_logger import get_logger, setup_logging
@@ -112,6 +114,59 @@ async def chatbot(
         logger.error("Error in chatbot: %s", e, exc_info=True, extra={"txt_query": txt_query, "title_k": title_k, "chunk_k": chunk_k, "query_expand_k": query_expand_k})
         # Surface actionable config errors (e.g., missing API keys) to the caller.
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+@app.get("/chatbot_stream")
+async def chatbot_stream(
+    txt_query: str,
+    chunk_index: str,
+    query_context: list[str] = Query(default=[]),
+    title_k: int = 3,
+    chunk_k: int = 12,
+    query_expand_k: int = 1,
+    _: None = Depends(require_auth),
+    __: None = Depends(require_rate_limit),
+):
+    """Stream chatbot response using Server-Sent Events (SSE)."""
+    title_index = f"{chunk_index}_titles"
+    
+    async def generate_stream():
+        try:
+            # Limit query_context to maximum 6 items
+            query_context_limited = query_context[-4:] if query_context else []
+            
+            async for chunk in rag_base.chat_stream(
+                txt_query, 
+                title_index,
+                chunk_index,
+                query_context=query_context_limited,
+                title_k=title_k, 
+                chunk_k=chunk_k,
+                query_expand_k=query_expand_k,
+            ):
+                # Format as Server-Sent Event
+                data = json.dumps(chunk, ensure_ascii=False)
+                yield f"data: {data}\n\n"
+                
+        except Exception as e:
+            # Log error
+            logger.error("Error in chatbot_stream: %s", e, exc_info=True, extra={"txt_query": txt_query})
+            # Send error as SSE
+            error_chunk = {
+                "type": "error",
+                "data": {"error": str(e)}
+            }
+            data = json.dumps(error_chunk, ensure_ascii=False)
+            yield f"data: {data}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable buffering in nginx
+        }
+    )
 
 @app.get("/agentic_rag")
 async def agentic_rag(
