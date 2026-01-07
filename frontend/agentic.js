@@ -1,63 +1,154 @@
 const STORAGE_KEY = "chatbot-milesguo:agentic:settings:v1";
 
-function trimSlash(s) {
-  return String(s || "").replace(/\/+$/, "");
-}
+function renderSourcesDetails(container, sources, { showIndex = true } = {}) {
+  if (!sources || !Array.isArray(sources) || sources.length === 0) return;
 
-function buildEndpointUrl(cloudBase) {
-  const url = String(cloudBase || "").trim();
-  if (!url) return "";
-  // Remove trailing slash
-  return trimSlash(url);
-}
+  const details = document.createElement("details");
+  details.open = !!showSources.checked;
 
+  const summary = document.createElement("summary");
+  summary.textContent = `Sources (${sources.length})`;
+  details.appendChild(summary);
 
-function setStatus(text, isError = false) {
-  statusPill.textContent = text;
-  statusPill.classList.toggle("danger", isError);
-}
+  const list = document.createElement("div");
+  list.className = "sources";
 
-function nowTime() {
-  const d = new Date();
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
+  for (const s of sources) {
+    const item = document.createElement("div");
+    item.className = "sourceItem";
 
-// Typewriter effect function
-async function typewriterEffect(element, text, speed = 20) {
-  element.textContent = "";
-  element.classList.add("typing");
-  
-  for (let i = 0; i < text.length; i++) {
-    element.textContent += text[i];
-    // Scroll to bottom as content is typed
-    messages.scrollTop = messages.scrollHeight;
-    await new Promise(resolve => setTimeout(resolve, speed));
-  }
-  
-  element.classList.remove("typing");
-}
+    const title = document.createElement("p");
+    title.className = "sourceTitle";
+    title.textContent = s.doc_title || "(untitled)";
 
-// Copy text to clipboard
-async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch (err) {
-    // Fallback for older browsers
-    const textArea = document.createElement("textarea");
-    textArea.value = text;
-    textArea.style.position = "fixed";
-    textArea.style.opacity = "0";
-    document.body.appendChild(textArea);
-    textArea.select();
-    try {
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      return true;
-    } catch (e) {
-      document.body.removeChild(textArea);
-      return false;
+    const metaP = document.createElement("p");
+    metaP.className = "sourceMeta";
+    const index = s.index ?? "";
+    const chunkId = s.chunk_id ?? "";
+    const docId = s.doc_id ?? "";
+    const score = s.score != null ? Number(s.score).toFixed(4) : "";
+    const indexPrefix = showIndex && index !== "" ? `#${index}   ` : "";
+    metaP.textContent = `${indexPrefix}doc_id: ${docId}   chunk_id: ${chunkId}   score: ${score}`;
+
+    const textP = document.createElement("p");
+    textP.className = "sourceText";
+    textP.textContent = s.text ? `Chunk: ${s.text}` : "";
+
+    const summaryText = s.doc_summary || s.summary || "";
+    if (summaryText) {
+      const summaryP = document.createElement("p");
+      summaryP.className = "sourceText";
+      summaryP.textContent = `Summary: ${summaryText}`;
+      item.appendChild(summaryP);
     }
+
+    const context = s.context || "";
+    if (context) {
+      const contextP = document.createElement("p");
+      contextP.className = "sourceText";
+      contextP.textContent = `Context: ${context}`;
+      item.appendChild(contextP);
+    }
+
+    item.appendChild(title);
+    item.appendChild(metaP);
+    item.appendChild(textP);
+    list.appendChild(item);
+  }
+
+  details.appendChild(list);
+  container.appendChild(details);
+}
+
+function renderAgenticProgress(container, { sources, searchCount, queryType }) {
+  const hasSources = sources && Array.isArray(sources) && sources.length > 0;
+  const hasSearchCount = searchCount !== null && searchCount !== undefined;
+  const hasQueryType = !!queryType;
+  if (!hasSources && !hasSearchCount && !hasQueryType) return;
+
+  const progressDiv = document.createElement("div");
+  progressDiv.className = "progressIndicator fadeIn";
+  let progressText = "";
+
+  if (hasSearchCount) {
+    progressText = `Search iteration: ${searchCount}`;
+  }
+  if (hasSources) {
+    progressText += progressText
+      ? ` | Found ${sources.length} source${sources.length !== 1 ? "s" : ""}`
+      : `Found ${sources.length} source${sources.length !== 1 ? "s" : ""}`;
+  }
+  if (hasQueryType) {
+    progressText += progressText ? ` | Type: ${queryType}` : `Type: ${queryType}`;
+  }
+
+  progressDiv.innerHTML = `
+        <div class="progressDot"></div>
+        <span class="progressText">${progressText}</span>
+      `;
+  container.appendChild(progressDiv);
+}
+
+function renderAgenticDetails(container, { sources, querys, queryType, searchCount, historicalSearchOps, prompt }) {
+  if (sources && Array.isArray(sources) && sources.length > 0) {
+    renderSourcesDetails(container, sources);
+  }
+
+  if (querys && querys.length) {
+    const d = document.createElement("details");
+    d.open = false;
+    d.innerHTML = `<summary>Queries (${querys.length})</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em;max-height:200px;overflow:auto">${querys
+      .map((q, i) => `${i ? "Expanded " + i : "Original"}: ${q}`)
+      .join("\n")}</pre>`;
+    container.appendChild(d);
+  }
+
+  if (queryType) {
+    const d = document.createElement("details");
+    d.open = false;
+    d.innerHTML = `<summary>Query Type</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em">${queryType}</pre>`;
+    container.appendChild(d);
+  }
+
+  if (searchCount !== null && searchCount !== undefined) {
+    const d = document.createElement("details");
+    d.open = false;
+    d.innerHTML = `<summary>Search Count</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em">${searchCount}</pre>`;
+    container.appendChild(d);
+  }
+
+  if (historicalSearchOps && Array.isArray(historicalSearchOps) && historicalSearchOps.length > 0) {
+    const d = document.createElement("details");
+    d.open = false;
+    const opsText = historicalSearchOps
+      .map((op, i) => {
+        if (typeof op === "object" && op !== null) {
+          const opType = op.type || "unknown";
+          if (opType === "search_general" && Array.isArray(op.query_list)) {
+            return `[${i + 1}] ${opType}: ${op.query_list.join(", ")}`;
+          }
+          if (opType === "search_doc") {
+            return `[${i + 1}] ${opType}: query="${op.query || ""}", doc_ids=[${(op.doc_ids || []).join(", ")}]`;
+          }
+          if (opType === "search_neighbour_chunks") {
+            return `[${i + 1}] ${opType}: doc_id="${op.doc_id || ""}", chunk_id="${op.chunk_id || ""}", distance=${
+              op.distance || 1
+            }`;
+          }
+          return `[${i + 1}] ${opType}: ${JSON.stringify(op, null, 2)}`;
+        }
+        return `[${i + 1}] ${String(op)}`;
+      })
+      .join("\n");
+    d.innerHTML = `<summary>Historical Search Ops (${historicalSearchOps.length})</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em;max-height:300px;overflow:auto">${opsText}</pre>`;
+    container.appendChild(d);
+  }
+
+  if (prompt) {
+    const d = document.createElement("details");
+    d.open = false;
+    d.innerHTML = `<summary>Prompt</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.85em;max-height:400px;overflow:auto;background:#f5f5f5">${prompt}</pre>`;
+    container.appendChild(d);
   }
 }
 
@@ -87,139 +178,10 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
     const existingDetails = updateBubble.querySelectorAll("details");
     existingDetails.forEach(d => d.remove());
 
-      // Add progress indicator for agentic workflow
-      if (role === "assistant" && (sources || searchCount !== null)) {
-        const progressDiv = document.createElement("div");
-        progressDiv.className = "progressIndicator fadeIn";
-        let progressText = "";
-        if (searchCount !== null) {
-          progressText = `Search iteration: ${searchCount}`;
-        }
-        if (sources && Array.isArray(sources) && sources.length > 0) {
-          progressText += progressText ? ` | Found ${sources.length} source${sources.length !== 1 ? 's' : ''}` : `Found ${sources.length} source${sources.length !== 1 ? 's' : ''}`;
-        }
-        if (queryType) {
-          progressText += progressText ? ` | Type: ${queryType}` : `Type: ${queryType}`;
-        }
-        if (progressText) {
-          progressDiv.innerHTML = `
-            <div class="progressDot"></div>
-            <span class="progressText">${progressText}</span>
-          `;
-          updateBubble.appendChild(progressDiv);
-        }
-      }
-      
-      // Add all details for assistant messages (collapsed by default)
-      if (role === "assistant") {
-        if (sources && Array.isArray(sources) && sources.length > 0) {
-        const details = document.createElement("details");
-        details.open = !!showSources.checked;
-
-        const summary = document.createElement("summary");
-        summary.textContent = `Sources (${sources.length})`;
-        details.appendChild(summary);
-
-        const list = document.createElement("div");
-        list.className = "sources";
-
-        for (const s of sources) {
-          const item = document.createElement("div");
-          item.className = "sourceItem";
-
-          const title = document.createElement("p");
-          title.className = "sourceTitle";
-          title.textContent = s.doc_title || "(untitled)";
-
-          const metaP = document.createElement("p");
-          metaP.className = "sourceMeta";
-          const index = s.index ?? "";
-          const chunkId = s.chunk_id ?? "";
-          const docId = s.doc_id ?? "";
-          const score = s.score != null ? Number(s.score).toFixed(4) : "";
-          metaP.textContent = `#${index}   doc_id: ${docId}   chunk_id: ${chunkId}   score: ${score}`;
-
-          const textP = document.createElement("p");
-          textP.className = "sourceText";
-          textP.textContent = s.text ? `Chunk: ${s.text}` : "";
-
-          // Optional summary for this chunk / document
-          const summary = s.doc_summary || s.summary || "";
-          if (summary) {
-            const summaryP = document.createElement("p");
-            summaryP.className = "sourceText";
-            summaryP.textContent = `Summary: ${summary}`;
-            item.appendChild(summaryP);
-          }
-
-          // Optional surrounding context for this chunk
-          const context = s.context || "";
-          if (context) {
-            const contextP = document.createElement("p");
-            contextP.className = "sourceText";
-            contextP.textContent = `Context: ${context}`;
-            item.appendChild(contextP);
-          }
-
-          item.appendChild(title);
-          item.appendChild(metaP);
-          item.appendChild(textP);
-          list.appendChild(item);
-        }
-
-        details.appendChild(list);
-        updateBubble.appendChild(details);
-      }
-
-      if (querys && querys.length) {
-        const d = document.createElement("details");
-        d.open = false;
-        d.innerHTML = `<summary>Queries (${querys.length})</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em;max-height:200px;overflow:auto">${querys.map((q, i) => `${i ? 'Expanded ' + i : 'Original'}: ${q}`).join('\n')}</pre>`;
-        updateBubble.appendChild(d);
-      }
-
-      if (queryType) {
-        const d = document.createElement("details");
-        d.open = false;
-        d.innerHTML = `<summary>Query Type</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em">${queryType}</pre>`;
-        updateBubble.appendChild(d);
-      }
-
-      if (searchCount !== null) {
-        const d = document.createElement("details");
-        d.open = false;
-        d.innerHTML = `<summary>Search Count</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em">${searchCount}</pre>`;
-        updateBubble.appendChild(d);
-      }
-
-      if (historicalSearchOps && Array.isArray(historicalSearchOps) && historicalSearchOps.length > 0) {
-        const d = document.createElement("details");
-        d.open = false;
-        const opsText = historicalSearchOps.map((op, i) => {
-          if (typeof op === 'object' && op !== null) {
-            const opType = op.type || 'unknown';
-            if (opType === 'search_general' && Array.isArray(op.query_list)) {
-              return `[${i + 1}] ${opType}: ${op.query_list.join(', ')}`;
-            } else if (opType === 'search_doc') {
-              return `[${i + 1}] ${opType}: query="${op.query || ''}", doc_ids=[${(op.doc_ids || []).join(', ')}]`;
-            } else if (opType === 'search_neighbour_chunks') {
-              return `[${i + 1}] ${opType}: doc_id="${op.doc_id || ''}", chunk_id="${op.chunk_id || ''}", distance=${op.distance || 1}`;
-            } else {
-              return `[${i + 1}] ${opType}: ${JSON.stringify(op, null, 2)}`;
-            }
-          }
-          return `[${i + 1}] ${String(op)}`;
-        }).join('\n');
-        d.innerHTML = `<summary>Historical Search Ops (${historicalSearchOps.length})</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em;max-height:300px;overflow:auto">${opsText}</pre>`;
-        updateBubble.appendChild(d);
-      }
-
-      if (prompt) {
-        const d = document.createElement("details");
-        d.open = false;
-        d.innerHTML = `<summary>Prompt</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.85em;max-height:400px;overflow:auto;background:#f5f5f5">${prompt}</pre>`;
-        updateBubble.appendChild(d);
-      }
+    // Add progress + details back for assistant messages
+    if (role === "assistant") {
+      renderAgenticProgress(updateBubble, { sources, searchCount, queryType });
+      renderAgenticDetails(updateBubble, { sources, querys, queryType, searchCount, historicalSearchOps, prompt });
     }
 
     messages.scrollTop = messages.scrollHeight;
@@ -336,224 +298,14 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
   bubble.appendChild(meta);
   bubble.appendChild(pre);
 
-  // Add progress indicator for agentic workflow
-  if (role === "assistant" && (sources || searchCount !== null)) {
-    const progressDiv = document.createElement("div");
-    progressDiv.className = "progressIndicator fadeIn";
-    let progressText = "";
-    if (searchCount !== null) {
-      progressText = `Search iteration: ${searchCount}`;
-    }
-    if (sources && Array.isArray(sources) && sources.length > 0) {
-      progressText += progressText ? ` | Found ${sources.length} source${sources.length !== 1 ? 's' : ''}` : `Found ${sources.length} source${sources.length !== 1 ? 's' : ''}`;
-    }
-    if (queryType) {
-      progressText += progressText ? ` | Type: ${queryType}` : `Type: ${queryType}`;
-    }
-    if (progressText) {
-      progressDiv.innerHTML = `
-        <div class="progressDot"></div>
-        <span class="progressText">${progressText}</span>
-      `;
-      bubble.appendChild(progressDiv);
-    }
-  }
-  
-  if (role === "assistant" && sources && Array.isArray(sources) && sources.length > 0) {
-    const details = document.createElement("details");
-    details.open = !!showSources.checked;
-
-    const summary = document.createElement("summary");
-    summary.textContent = `Sources (${sources.length})`;
-    details.appendChild(summary);
-
-    const list = document.createElement("div");
-    list.className = "sources";
-
-    for (const s of sources) {
-      const item = document.createElement("div");
-      item.className = "sourceItem";
-
-      const title = document.createElement("p");
-      title.className = "sourceTitle";
-      title.textContent = s.doc_title || "(untitled)";
-
-      const metaP = document.createElement("p");
-      metaP.className = "sourceMeta";
-      const chunkId = s.chunk_id ?? "";
-      const docId = s.doc_id ?? "";
-      const score = s.score != null ? Number(s.score).toFixed(4) : "";
-      metaP.textContent = `doc_id: ${docId}   chunk_id: ${chunkId}   score: ${score}`;
-
-      const textP = document.createElement("p");
-      textP.className = "sourceText";
-      textP.textContent = s.text ? `Chunk: ${s.text}` : "";
-
-      // Optional summary for this chunk / document
-      const summary = s.doc_summary || s.summary || "";
-      if (summary) {
-        const summaryP = document.createElement("p");
-        summaryP.className = "sourceText";
-        summaryP.textContent = `Summary: ${summary}`;
-        item.appendChild(summaryP);
-      }
-
-      // Optional surrounding context for this chunk
-      const context = s.context || "";
-      if (context) {
-        const contextP = document.createElement("p");
-        contextP.className = "sourceText";
-        contextP.textContent = `Context: ${context}`;
-        item.appendChild(contextP);
-      }
-
-      item.appendChild(title);
-      item.appendChild(metaP);
-      item.appendChild(textP);
-      list.appendChild(item);
-    }
-
-    details.appendChild(list);
-    bubble.appendChild(details);
-  }
-
   if (role === "assistant") {
-    if (querys && querys.length) {
-      const d = document.createElement("details");
-      d.open = false;
-      d.innerHTML = `<summary>Queries (${querys.length})</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em;max-height:200px;overflow:auto">${querys.map((q, i) => `${i ? 'Expanded ' + i : 'Original'}: ${q}`).join('\n')}</pre>`;
-      bubble.appendChild(d);
-    }
-    if (queryType) {
-      const d = document.createElement("details");
-      d.open = false;
-      d.innerHTML = `<summary>Query Type</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em">${queryType}</pre>`;
-      bubble.appendChild(d);
-    }
-    if (searchCount !== null) {
-      const d = document.createElement("details");
-      d.open = false;
-      d.innerHTML = `<summary>Search Count</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em">${searchCount}</pre>`;
-      bubble.appendChild(d);
-    }
-    if (historicalSearchOps && Array.isArray(historicalSearchOps) && historicalSearchOps.length > 0) {
-      const d = document.createElement("details");
-      d.open = false;
-      const opsText = historicalSearchOps.map((op, i) => {
-        if (typeof op === 'object' && op !== null) {
-          const opType = op.type || 'unknown';
-          if (opType === 'search_general' && Array.isArray(op.query_list)) {
-            return `[${i + 1}] ${opType}: ${op.query_list.join(', ')}`;
-          } else if (opType === 'search_doc') {
-            return `[${i + 1}] ${opType}: query="${op.query || ''}", doc_ids=[${(op.doc_ids || []).join(', ')}]`;
-          } else if (opType === 'search_neighbour_chunks') {
-            return `[${i + 1}] ${opType}: doc_id="${op.doc_id || ''}", chunk_id="${op.chunk_id || ''}", distance=${op.distance || 1}`;
-          } else {
-            return `[${i + 1}] ${opType}: ${JSON.stringify(op, null, 2)}`;
-          }
-        }
-        return `[${i + 1}] ${String(op)}`;
-      }).join('\n');
-      d.innerHTML = `<summary>Historical Search Ops (${historicalSearchOps.length})</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.9em;max-height:300px;overflow:auto">${opsText}</pre>`;
-      bubble.appendChild(d);
-    }
-    if (prompt) {
-      const d = document.createElement("details");
-      d.open = false;
-      d.innerHTML = `<summary>Prompt</summary><pre style="padding:8px;white-space:pre-wrap;font-size:0.85em;max-height:400px;overflow:auto;background:#f5f5f5">${prompt}</pre>`;
-      bubble.appendChild(d);
-    }
+    renderAgenticProgress(bubble, { sources, searchCount, queryType });
+    renderAgenticDetails(bubble, { sources, querys, queryType, searchCount, historicalSearchOps, prompt });
   }
 
   messages.appendChild(bubble);
   messages.scrollTop = messages.scrollHeight;
   return bubble;
-}
-
-let cachedAuthToken = null;
-let tokenFetchPromise = null;
-
-async function fetchAuthTokenFromBackend() {
-  if (tokenFetchPromise) return tokenFetchPromise;
-  
-  tokenFetchPromise = (async () => {
-    try {
-      // Use DOM values directly to avoid circular dependency.
-      // Build the token URL by replacing the last path segment with "token"
-      const baseUrl = (cloudBase?.value || "").trim();
-      if (!baseUrl) {
-        console.warn("Cloud Functions URL is empty.");
-        return null;
-      }
-      
-      // Validate URL format
-      let url;
-      try {
-        url = new URL(baseUrl);
-      } catch (e) {
-        console.error("Invalid Cloud Functions URL format:", e, "URL was:", baseUrl);
-        return null;
-      }
-      
-      // Build token URL by replacing the last path segment with "token"
-      let tokenUrl;
-      try {
-        const pathSegments = url.pathname.split("/").filter(Boolean);
-        // Replace the last segment (endpoint path) with "token"
-        if (pathSegments.length > 0) {
-          pathSegments[pathSegments.length - 1] = "token";
-          url.pathname = "/" + pathSegments.join("/");
-        } else {
-          // If URL has no path, append /token
-          url.pathname = "/token";
-        }
-        tokenUrl = url.toString();
-        console.log("Cloud Functions URL:", baseUrl);
-        console.log("Constructed token URL:", tokenUrl);
-      } catch (e) {
-        console.warn("Error constructing token URL:", e, "URL was:", baseUrl);
-        return null;
-      }
-      if (!tokenUrl) {
-        console.warn("Token URL is empty (check Cloud Functions URL).");
-        return null;
-      }
-      console.log("Fetching auth token from:", tokenUrl);
-      
-      const res = await fetch(tokenUrl, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        cachedAuthToken = data.token || null;
-        if (cachedAuthToken) {
-          // Trim token to avoid whitespace issues
-          cachedAuthToken = cachedAuthToken.trim();
-          console.log("Auth token fetched successfully");
-        } else {
-          console.warn("Auth token is null - authentication may not be enabled on backend");
-        }
-        return cachedAuthToken;
-      } else {
-        console.warn(`Failed to fetch auth token: ${res.status} ${res.statusText}`);
-      }
-    } catch (e) {
-      console.warn("Failed to fetch auth token from backend:", e);
-    }
-    return null;
-  })();
-  
-  return tokenFetchPromise;
-}
-
-function getAuthToken() {
-  // Priority: URL param > cached token > null
-  const params = new URLSearchParams(window.location.search);
-  const urlToken = params.get("token");
-  if (urlToken) return urlToken.trim();
-  return (cachedAuthToken && cachedAuthToken.trim()) || "";
 }
 
 function getSettingsFromUI() {

@@ -1,64 +1,74 @@
 const STORAGE_KEY = "chatbot-milesguo:settings:v1";
 
-function trimSlash(s) {
-  return String(s || "").replace(/\/+$/, "");
-}
+function renderSourcesDetails(container, sources, { includeIndex = true } = {}) {
+  if (!sources || !Array.isArray(sources) || sources.length === 0) return;
 
-function buildEndpointUrl(cloudBase) {
-  const url = String(cloudBase || "").trim();
-  if (!url) return "";
-  // Remove trailing slash
-  return trimSlash(url);
-}
+  const details = document.createElement("details");
+  details.open = !!showSources.checked;
 
+  const summary = document.createElement("summary");
+  summary.textContent = `Sources (${sources.length})`;
+  details.appendChild(summary);
 
-function setStatus(text, isError = false) {
-  statusPill.textContent = text;
-  statusPill.classList.toggle("danger", isError);
-}
+  const list = document.createElement("div");
+  list.className = "sources";
 
-function nowTime() {
-  const d = new Date();
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
+  for (const s of sources) {
+    const item = document.createElement("div");
+    item.className = "sourceItem";
 
-// Typewriter effect function
-async function typewriterEffect(element, text, speed = 20) {
-  element.textContent = "";
-  element.classList.add("typing");
-  
-  for (let i = 0; i < text.length; i++) {
-    element.textContent += text[i];
-    // Scroll to bottom as content is typed
-    messages.scrollTop = messages.scrollHeight;
-    await new Promise(resolve => setTimeout(resolve, speed));
-  }
-  
-  element.classList.remove("typing");
-}
+    const title = document.createElement("p");
+    title.className = "sourceTitle";
+    title.textContent = s.doc_title || "(untitled)";
 
-// Copy text to clipboard
-async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch (err) {
-    // Fallback for older browsers
-    const textArea = document.createElement("textarea");
-    textArea.value = text;
-    textArea.style.position = "fixed";
-    textArea.style.opacity = "0";
-    document.body.appendChild(textArea);
-    textArea.select();
-    try {
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      return true;
-    } catch (e) {
-      document.body.removeChild(textArea);
-      return false;
+    const metaP = document.createElement("p");
+    metaP.className = "sourceMeta";
+    const index = s.index ?? "";
+    const chunkId = s.chunk_id ?? "";
+    const docId = s.doc_id ?? "";
+    const score = s.score != null ? Number(s.score).toFixed(4) : "";
+    const indexPrefix = includeIndex && index !== "" ? `#${index}   ` : "";
+    metaP.textContent = `${indexPrefix}doc_id: ${docId}   chunk_id: ${chunkId}   score: ${score}`;
+
+    const textP = document.createElement("p");
+    textP.className = "sourceText";
+    textP.textContent = s.text ? `Chunk: ${s.text}` : "";
+
+    const summaryText = s.doc_summary || s.summary || "";
+    if (summaryText) {
+      const summaryP = document.createElement("p");
+      summaryP.className = "sourceText";
+      summaryP.textContent = `Summary: ${summaryText}`;
+      item.appendChild(summaryP);
     }
+
+    const context = s.context || "";
+    if (context) {
+      const contextP = document.createElement("p");
+      contextP.className = "sourceText";
+      contextP.textContent = `Context: ${context}`;
+      item.appendChild(contextP);
+    }
+
+    item.appendChild(title);
+    item.appendChild(metaP);
+    item.appendChild(textP);
+    list.appendChild(item);
   }
+
+  details.appendChild(list);
+  container.appendChild(details);
+}
+
+function renderSourcesProgress(container, sources) {
+  if (!sources || !Array.isArray(sources) || sources.length === 0) return;
+  const progressDiv = document.createElement("div");
+  progressDiv.className = "progressIndicator fadeIn";
+  progressDiv.innerHTML = `
+          <div class="progressDot"></div>
+          <span class="progressText">Found ${sources.length} source${sources.length !== 1 ? "s" : ""}</span>
+        `;
+  container.appendChild(progressDiv);
 }
 
 function addMessage({ role, text, sources = null, prompt = null, querys = null, thinking = false, updateBubble = null, useTypewriter = true }) {
@@ -83,80 +93,15 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
     const existingProgress = updateBubble.querySelectorAll(".progressIndicator");
     existingProgress.forEach(p => p.remove());
     
-    // Remove existing sources if any
+    // Remove existing sources/details if any
     const existingDetails = updateBubble.querySelectorAll("details");
     existingDetails.forEach(d => d.remove());
 
     // Add new sources if provided
-      // Add progress indicator after message update
-      if (role === "assistant" && sources && Array.isArray(sources) && sources.length > 0) {
-        const progressDiv = document.createElement("div");
-        progressDiv.className = "progressIndicator fadeIn";
-        progressDiv.innerHTML = `
-          <div class="progressDot"></div>
-          <span class="progressText">Found ${sources.length} source${sources.length !== 1 ? 's' : ''}</span>
-        `;
-        updateBubble.appendChild(progressDiv);
-      }
-      
-      if (role === "assistant" && sources && Array.isArray(sources) && sources.length > 0) {
-        const details = document.createElement("details");
-        details.open = !!showSources.checked;
-
-        const summary = document.createElement("summary");
-        summary.textContent = `Sources (${sources.length})`;
-        details.appendChild(summary);
-
-        const list = document.createElement("div");
-        list.className = "sources";
-
-        for (const s of sources) {
-          const item = document.createElement("div");
-          item.className = "sourceItem";
-
-          const title = document.createElement("p");
-          title.className = "sourceTitle";
-          title.textContent = s.doc_title || "(untitled)";
-
-          const metaP = document.createElement("p");
-          metaP.className = "sourceMeta";
-          const index = s.index ?? "";
-          const chunkId = s.chunk_id ?? "";
-          const docId = s.doc_id ?? "";
-          const score = s.score != null ? Number(s.score).toFixed(4) : "";
-          metaP.textContent = `#${index}   doc_id: ${docId}   chunk_id: ${chunkId}   score: ${score}`;
-
-          const textP = document.createElement("p");
-          textP.className = "sourceText";
-          textP.textContent = s.text ? `Chunk: ${s.text}` : "";
-
-          // Optional summary for this chunk / document
-          const summary = s.doc_summary || s.summary || "";
-          if (summary) {
-            const summaryP = document.createElement("p");
-            summaryP.className = "sourceText";
-            summaryP.textContent = `Summary: ${summary}`;
-            item.appendChild(summaryP);
-          }
-
-          // Optional surrounding context for this chunk
-          const context = s.context || "";
-          if (context) {
-            const contextP = document.createElement("p");
-            contextP.className = "sourceText";
-            contextP.textContent = `Context: ${context}`;
-            item.appendChild(contextP);
-          }
-
-          item.appendChild(title);
-          item.appendChild(metaP);
-          item.appendChild(textP);
-          list.appendChild(item);
-        }
-
-        details.appendChild(list);
-        updateBubble.appendChild(details);
-      }
+    if (role === "assistant") {
+      renderSourcesProgress(updateBubble, sources);
+      renderSourcesDetails(updateBubble, sources);
+    }
 
     messages.scrollTop = messages.scrollHeight;
     return updateBubble;
@@ -272,62 +217,9 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
   bubble.appendChild(meta);
   bubble.appendChild(pre);
 
-  if (role === "assistant" && sources && Array.isArray(sources) && sources.length > 0) {
-    const details = document.createElement("details");
-    details.open = !!showSources.checked;
-
-    const summary = document.createElement("summary");
-    summary.textContent = `Sources (${sources.length})`;
-    details.appendChild(summary);
-
-    const list = document.createElement("div");
-    list.className = "sources";
-
-    for (const s of sources) {
-      const item = document.createElement("div");
-      item.className = "sourceItem";
-
-      const title = document.createElement("p");
-      title.className = "sourceTitle";
-      title.textContent = s.doc_title || "(untitled)";
-
-      const metaP = document.createElement("p");
-      metaP.className = "sourceMeta";
-      const chunkId = s.chunk_id ?? "";
-      const docId = s.doc_id ?? "";
-      const score = s.score != null ? Number(s.score).toFixed(4) : "";
-      metaP.textContent = `doc_id: ${docId}   chunk_id: ${chunkId}   score: ${score}`;
-
-      const textP = document.createElement("p");
-      textP.className = "sourceText";
-      textP.textContent = s.text ? `Chunk: ${s.text}` : "";
-
-      // Optional summary for this chunk / document
-      const summary = s.doc_summary || s.summary || "";
-      if (summary) {
-        const summaryP = document.createElement("p");
-        summaryP.className = "sourceText";
-        summaryP.textContent = `Summary: ${summary}`;
-        item.appendChild(summaryP);
-      }
-
-      // Optional surrounding context for this chunk
-      const context = s.context || "";
-      if (context) {
-        const contextP = document.createElement("p");
-        contextP.className = "sourceText";
-        contextP.textContent = `Context: ${context}`;
-        item.appendChild(contextP);
-      }
-
-      item.appendChild(title);
-      item.appendChild(metaP);
-      item.appendChild(textP);
-      list.appendChild(item);
-    }
-
-    details.appendChild(list);
-    bubble.appendChild(details);
+  if (role === "assistant") {
+    renderSourcesProgress(bubble, sources);
+    renderSourcesDetails(bubble, sources, { includeIndex: false });
   }
 
   if (role === "assistant") {
@@ -346,92 +238,6 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
   messages.appendChild(bubble);
   messages.scrollTop = messages.scrollHeight;
   return bubble;
-}
-
-let cachedAuthToken = null;
-let tokenFetchPromise = null;
-
-async function fetchAuthTokenFromBackend() {
-  if (tokenFetchPromise) return tokenFetchPromise;
-  
-  tokenFetchPromise = (async () => {
-    try {
-      // Use DOM values directly to avoid circular dependency.
-      // Build the token URL by replacing the last path segment with "token"
-      const baseUrl = (cloudBase?.value || "").trim();
-      if (!baseUrl) {
-        console.warn("Cloud Functions URL is empty.");
-        return null;
-      }
-      
-      // Validate URL format
-      let url;
-      try {
-        url = new URL(baseUrl);
-      } catch (e) {
-        console.error("Invalid Cloud Functions URL format:", e, "URL was:", baseUrl);
-        return null;
-      }
-      
-      // Build token URL by replacing the last path segment with "token"
-      let tokenUrl;
-      try {
-        const pathSegments = url.pathname.split("/").filter(Boolean);
-        // Replace the last segment (endpoint path) with "token"
-        if (pathSegments.length > 0) {
-          pathSegments[pathSegments.length - 1] = "token";
-          url.pathname = "/" + pathSegments.join("/");
-        } else {
-          // If URL has no path, append /token
-          url.pathname = "/token";
-        }
-        tokenUrl = url.toString();
-        console.log("Cloud Functions URL:", baseUrl);
-        console.log("Constructed token URL:", tokenUrl);
-      } catch (e) {
-        console.warn("Error constructing token URL:", e, "URL was:", baseUrl);
-        return null;
-      }
-      if (!tokenUrl) {
-        console.warn("Token URL is empty (check Cloud Functions URL).");
-        return null;
-      }
-      console.log("Fetching auth token from:", tokenUrl);
-      
-      const res = await fetch(tokenUrl, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        cachedAuthToken = data.token || null;
-        if (cachedAuthToken) {
-          // Trim token to avoid whitespace issues
-          cachedAuthToken = cachedAuthToken.trim();
-          console.log("Auth token fetched successfully");
-        } else {
-          console.warn("Auth token is null - authentication may not be enabled on backend");
-        }
-        return cachedAuthToken;
-      } else {
-        console.warn(`Failed to fetch auth token: ${res.status} ${res.statusText}`);
-      }
-    } catch (e) {
-      console.warn("Failed to fetch auth token from backend:", e);
-    }
-    return null;
-  })();
-  
-  return tokenFetchPromise;
-}
-
-function getAuthToken() {
-  // Priority: URL param > cached token > null
-  const params = new URLSearchParams(window.location.search);
-  const urlToken = params.get("token");
-  if (urlToken) return urlToken.trim();
-  return (cachedAuthToken && cachedAuthToken.trim()) || "";
 }
 
 function getSettingsFromUI() {
