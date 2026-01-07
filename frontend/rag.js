@@ -128,7 +128,25 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
 
           const textP = document.createElement("p");
           textP.className = "sourceText";
-          textP.textContent = s.text || "";
+          textP.textContent = s.text ? `Chunk: ${s.text}` : "";
+
+          // Optional summary for this chunk / document
+          const summary = s.doc_summary || s.summary || "";
+          if (summary) {
+            const summaryP = document.createElement("p");
+            summaryP.className = "sourceText";
+            summaryP.textContent = `Summary: ${summary}`;
+            item.appendChild(summaryP);
+          }
+
+          // Optional surrounding context for this chunk
+          const context = s.context || "";
+          if (context) {
+            const contextP = document.createElement("p");
+            contextP.className = "sourceText";
+            contextP.textContent = `Context: ${context}`;
+            item.appendChild(contextP);
+          }
 
           item.appendChild(title);
           item.appendChild(metaP);
@@ -282,7 +300,25 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
 
       const textP = document.createElement("p");
       textP.className = "sourceText";
-      textP.textContent = s.text || "";
+      textP.textContent = s.text ? `Chunk: ${s.text}` : "";
+
+      // Optional summary for this chunk / document
+      const summary = s.doc_summary || s.summary || "";
+      if (summary) {
+        const summaryP = document.createElement("p");
+        summaryP.className = "sourceText";
+        summaryP.textContent = `Summary: ${summary}`;
+        item.appendChild(summaryP);
+      }
+
+      // Optional surrounding context for this chunk
+      const context = s.context || "";
+      if (context) {
+        const contextP = document.createElement("p");
+        contextP.className = "sourceText";
+        contextP.textContent = `Context: ${context}`;
+        item.appendChild(contextP);
+      }
 
       item.appendChild(title);
       item.appendChild(metaP);
@@ -456,6 +492,7 @@ function saveSettings(s) {
 
 
 let inFlight = null;
+let currentThinkingBubble = null;
 let rateLimitTimer = null;
 // Store conversation history for query_context
 let queryContext = [];
@@ -489,6 +526,28 @@ async function sendMessage() {
   const text = userInput.value.trim();
   if (!text) return;
   errorLine.textContent = "";
+
+  // Cancel previous request if in flight
+  if (inFlight) {
+    inFlight.abort();
+    inFlight = null;
+    // Mark previous thinking bubble as cancelled
+    if (currentThinkingBubble) {
+      const msgElement = currentThinkingBubble.querySelector(".msg");
+      if (msgElement) {
+        msgElement.textContent = "(Cancelled)";
+        msgElement.classList.remove("typing");
+      }
+      const statusIndicator = currentThinkingBubble.querySelector(".progressIndicator");
+      if (statusIndicator) {
+        statusIndicator.innerHTML = `
+          <div class="progressDot"></div>
+          <span class="progressText">Cancelled</span>
+        `;
+      }
+      currentThinkingBubble = null;
+    }
+  }
 
   // Ensure token is fetched before sending request
   if (!cachedAuthToken) {
@@ -555,6 +614,7 @@ async function sendMessage() {
 
   // Add thinking indicator for assistant with enhanced status
   const thinkingBubble = addMessage({ role: "assistant", thinking: true });
+  currentThinkingBubble = thinkingBubble;
   
   // Add status indicator to thinking bubble
   const statusIndicator = document.createElement("div");
@@ -588,12 +648,16 @@ async function sendMessage() {
       await handleNonStreamingResponse(url.toString(), headers, controller, thinkingBubble, text);
     }
   } catch (e) {
-    const msg = e?.name === "AbortError" ? "Request cancelled." : String(e?.message || e);
-    addMessage({ role: "assistant", text: `Error: ${msg}`, updateBubble: thinkingBubble, useTypewriter: false });
-    setStatus("Error", true);
-    errorLine.textContent = msg;
+    // Only show error if not cancelled (cancelled requests are already handled above)
+    if (e?.name !== "AbortError" || thinkingBubble === currentThinkingBubble) {
+      const msg = e?.name === "AbortError" ? "Request cancelled." : String(e?.message || e);
+      addMessage({ role: "assistant", text: `Error: ${msg}`, updateBubble: thinkingBubble, useTypewriter: false });
+      setStatus("Error", true);
+      errorLine.textContent = msg;
+    }
   } finally {
     inFlight = null;
+    currentThinkingBubble = null;
     // If we are counting down for rate limiting, keep send disabled.
     if (!rateLimitTimer) sendBtn.disabled = false;
     cancelBtn.disabled = true;
@@ -847,7 +911,26 @@ clearBtn.addEventListener("click", () => {
 
 sendBtn.addEventListener("click", sendMessage);
 cancelBtn.addEventListener("click", () => {
-  if (inFlight) inFlight.abort();
+  if (inFlight) {
+    inFlight.abort();
+    inFlight = null;
+    // Mark thinking bubble as cancelled
+    if (currentThinkingBubble) {
+      const msgElement = currentThinkingBubble.querySelector(".msg");
+      if (msgElement) {
+        msgElement.textContent = "(Cancelled)";
+        msgElement.classList.remove("typing");
+      }
+      const statusIndicator = currentThinkingBubble.querySelector(".progressIndicator");
+      if (statusIndicator) {
+        statusIndicator.innerHTML = `
+          <div class="progressDot"></div>
+          <span class="progressText">Cancelled</span>
+        `;
+      }
+      currentThinkingBubble = null;
+    }
+  }
 });
 
 userInput.addEventListener("keydown", (e) => {

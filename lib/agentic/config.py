@@ -8,6 +8,7 @@ class SearchConfig(TypedDict):
     
 class AgenticConfig(TypedDict):
     max_iter: int
+    max_query_expand_k: int
 
 # 1. 定义状态结构
 class AgentState(TypedDict, total=False):
