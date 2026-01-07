@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import asyncio
 from lib.rag.rag_base import RAGBase
 from lib.agentic.graph import AgenticGraph
+from lib.agentic.streaming import agentic_rag_stream
 from lib.app_logger import get_logger, setup_logging
 from lib.security import setup_cors, require_auth, require_rate_limit, global_exception_handler
 from lib.agentic.config import get_agent_state_default
@@ -197,6 +198,57 @@ async def agentic_rag(
             "search_count": agentic_result["search_count"],
         }
     return result
+
+@app.get("/agentic_rag_stream")
+async def agentic_rag_stream_endpoint(
+    txt_query: str,
+    chunk_index: str,
+    query_context: list[str] = Query(default=[]),
+    title_k: int = 3,
+    chunk_k: int = 12,
+    query_expand_k: int = 1,
+    max_iter: int = 2,
+    _: None = Depends(require_auth),
+    __: None = Depends(require_rate_limit),
+):
+    """Stream agentic RAG response using Server-Sent Events (SSE)."""
+    state1 = get_agent_state_default(
+        chunk_index, 
+        title_k, 
+        chunk_k, 
+        max_iter=max_iter,
+        max_query_expand_k=query_expand_k, 
+    )
+    state1["question"] = txt_query
+    state1["query_context"] = query_context[-4:] if query_context else []
+    
+    async def generate_stream():
+        try:
+            async for chunk in agentic_rag_stream(agentic_base, state1):
+                # Format as Server-Sent Event
+                data = json.dumps(chunk, ensure_ascii=False)
+                yield f"data: {data}\n\n"
+                
+        except Exception as e:
+            # Log error
+            logger.error("Error in agentic_rag_stream: %s", e, exc_info=True, extra={"txt_query": txt_query})
+            # Send error as SSE
+            error_chunk = {
+                "type": "error",
+                "data": {"error": str(e)}
+            }
+            data = json.dumps(error_chunk, ensure_ascii=False)
+            yield f"data: {data}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable buffering in nginx
+        }
+    )
 
 
 # Start server when run directly or in Cloud Functions 2nd gen

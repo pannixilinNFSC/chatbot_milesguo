@@ -10,7 +10,7 @@ class AgenticConfig(TypedDict):
     max_iter: int
 
 # 1. 定义状态结构
-class AgentState(TypedDict):
+class AgentState(TypedDict, total=False):
     question: str # init user query
     query_context: List[str] # query context for RAG search
     answer: str # final answer
@@ -21,6 +21,7 @@ class AgentState(TypedDict):
     search_count: int # turns of RAG search
     search_config: SearchConfig # search config
     agentic_config: AgenticConfig # agentic config
+    enable_streaming: bool # enable streaming output in rag_reply_node
     
 def get_agent_state_default(
     chunk_index: str = "miles_guo",

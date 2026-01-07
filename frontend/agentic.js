@@ -548,7 +548,7 @@ function applySettingsToUI(s) {
 
 function loadSettings() {
   const defaults = {
-    cloudBase: "https://us-central1-xixibaigao.cloudfunctions.net/chatbot-milesguo/agentic_rag",
+    cloudBase: "https://us-central1-xixibaigao.cloudfunctions.net/chatbot-milesguo/agentic_rag_stream",
     titleK: 3,
     chunkK: 12,
     queryExpandK: 1,
@@ -644,7 +644,16 @@ async function sendMessage() {
   addMessage({ role: "user", text });
   userInput.value = "";
 
-  // Use the full URL directly (user can specify complete endpoint like /agentic_rag)
+  // Determine if we should use streaming endpoint
+  // Only use streaming if the URL explicitly contains /agentic_rag_stream
+  let useStreaming = false;
+  
+  // Check if URL explicitly contains streaming endpoint
+  if (endpoint.includes("/agentic_rag_stream")) {
+    useStreaming = true;
+  }
+
+  // Use the full URL directly (user can specify complete endpoint like /agentic_rag or /agentic_rag_stream)
   const url = new URL(endpoint);
   url.searchParams.set("txt_query", text);
   url.searchParams.set("title_k", String(s.titleK));
@@ -678,7 +687,7 @@ async function sendMessage() {
   statusIndicator.className = "progressIndicator";
   statusIndicator.innerHTML = `
     <div class="progressDot"></div>
-    <span class="progressText">Processing with Agentic RAG workflow...</span>
+    <span class="progressText">${useStreaming ? "Connecting to stream..." : "Processing with Agentic RAG workflow..."}</span>
   `;
   thinkingBubble.appendChild(statusIndicator);
 
@@ -686,7 +695,7 @@ async function sendMessage() {
     // Get fresh token in case it was just fetched
     const authToken = getAuthToken();
     const headers = {
-      Accept: "application/json",
+      Accept: useStreaming ? "text/event-stream" : "application/json",
     };
     
     // Always include Authorization header if token exists
@@ -697,64 +706,13 @@ async function sendMessage() {
       console.warn("No auth token available - request may fail if backend requires authentication");
     }
     
-    const res = await fetch(url.toString(), {
-      method: "GET",
-      signal: controller.signal,
-      headers: headers,
-    });
-
-    const retryAfterHeader = res.headers.get("Retry-After");
-    const raw = await res.text();
-    let data = null;
-    try {
-      data = raw ? JSON.parse(raw) : null;
-    } catch {
-      data = null;
+    if (useStreaming) {
+      // Use streaming response with EventSource-like handling
+      await handleStreamingResponse(url.toString(), headers, controller, thinkingBubble, text);
+    } else {
+      // Use regular non-streaming response
+      await handleNonStreamingResponse(url.toString(), headers, controller, thinkingBubble, text);
     }
-
-    if (!res.ok) {
-      if (res.status === 401) {
-        const tokenInfo = authToken ? "Token is present but invalid" : "No token provided";
-        throw new Error(`Unauthorized (401). ${tokenInfo}. Check API_AUTH_TOKEN environment variable on backend or include token in URL parameter: ?token=xxx`);
-      }
-      if (res.status === 429) {
-        const retryAfter = Number(retryAfterHeader || "");
-        if (Number.isFinite(retryAfter) && retryAfter > 0) {
-          startRateLimitCountdown(retryAfter);
-          throw new Error(`Rate limit exceeded (429). Retry after ${retryAfter}s.`);
-        }
-        throw new Error("Rate limit exceeded (429). Please retry later.");
-      }
-      const detail = data?.detail || raw || `HTTP ${res.status}`;
-      throw new Error(detail);
-    }
-
-    const content = data?.content ?? "";
-    const sources = Array.isArray(data?.search_results) ? data.search_results : [];
-    const prompt = data?.prompt ?? null;
-    const querys = Array.isArray(data?.querys) ? data.querys : null;
-    const queryType = data?.query_type ?? null;
-    const searchCount = data?.search_count ?? null;
-    const historicalSearchOps = Array.isArray(data?.historical_search_ops) ? data.historical_search_ops : null;
-    addMessage({ 
-      role: "assistant", 
-      text: content, 
-      sources, 
-      prompt, 
-      querys, 
-      queryType, 
-      searchCount, 
-      historicalSearchOps, 
-      updateBubble: thinkingBubble,
-      useTypewriter: true 
-    });
-    // Keep the last 3 Q&A pairs (6 messages) for context
-    queryContext.push(`用户: ${text}`, `助手: ${content}`);
-    // Keep only the last 6 messages (3 rounds of Q&A)
-    if (queryContext.length > 6) {
-      queryContext = queryContext.slice(-6);
-    }
-    setStatus("Done");
   } catch (e) {
     const msg = e?.name === "AbortError" ? "Request cancelled." : String(e?.message || e);
     addMessage({ role: "assistant", text: `Error: ${msg}`, updateBubble: thinkingBubble });
@@ -766,6 +724,196 @@ async function sendMessage() {
     if (!rateLimitTimer) sendBtn.disabled = false;
     cancelBtn.disabled = true;
   }
+}
+
+async function handleStreamingResponse(url, headers, controller, thinkingBubble, userText) {
+  const res = await fetch(url, {
+    method: "GET",
+    signal: controller.signal,
+    headers: headers,
+  });
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      const tokenInfo = headers.Authorization ? "Token is present but invalid" : "No token provided";
+      throw new Error(`Unauthorized (401). ${tokenInfo}. Check API_AUTH_TOKEN environment variable on backend or include token in URL parameter: ?token=xxx`);
+    }
+    if (res.status === 429) {
+      const retryAfterHeader = res.headers.get("Retry-After");
+      const retryAfter = Number(retryAfterHeader || "");
+      if (Number.isFinite(retryAfter) && retryAfter > 0) {
+        startRateLimitCountdown(retryAfter);
+        throw new Error(`Rate limit exceeded (429). Retry after ${retryAfter}s.`);
+      }
+      throw new Error("Rate limit exceeded (429). Please retry later.");
+    }
+    const detail = await res.text().catch(() => `HTTP ${res.status}`);
+    throw new Error(detail);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let fullContent = "";
+  let sources = null;
+  let queryType = null;
+  let searchCount = null;
+  let historicalSearchOps = null;
+
+  // Get the message element for streaming updates
+  const msgElement = thinkingBubble.querySelector(".msg");
+  if (!msgElement) {
+    throw new Error("Message element not found");
+  }
+
+  // Get status indicator for updates
+  const statusIndicator = thinkingBubble.querySelector(".progressIndicator");
+
+  // Remove thinking indicator and prepare for streaming
+  msgElement.innerHTML = "";
+  msgElement.classList.remove("typing");
+  msgElement.classList.add("typing");
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n\n");
+      buffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+      for (const line of lines) {
+        if (!line.trim()) continue; // Skip empty lines
+        if (line.startsWith("data: ")) {
+          try {
+            const jsonStr = line.slice(6).trim();
+            if (!jsonStr) continue; // Skip empty data lines
+            const data = JSON.parse(jsonStr);
+            const { type, data: chunkData } = data;
+
+            if (type === "status") {
+              // Update status indicator with node execution status
+              if (statusIndicator && chunkData) {
+                const status = chunkData.status || "processing";
+                const node = chunkData.node || "";
+                const iteration = chunkData.iteration || null;
+                let statusText = `Status: ${status}`;
+                if (iteration !== null) {
+                  statusText = `Search iteration ${iteration}: ${status}`;
+                }
+                statusIndicator.innerHTML = `
+                  <div class="progressDot"></div>
+                  <span class="progressText">${statusText}</span>
+                `;
+              }
+            } else if (type === "content") {
+              // Stream content chunks
+              fullContent += chunkData;
+              msgElement.textContent = fullContent;
+              messages.scrollTop = messages.scrollHeight;
+            } else if (type === "done") {
+              // Final update with all data
+              fullContent = chunkData.content || fullContent;
+              sources = chunkData.search_results || sources || [];
+              queryType = chunkData.query_type || queryType;
+              searchCount = chunkData.search_count !== undefined ? chunkData.search_count : searchCount;
+              historicalSearchOps = chunkData.historical_search_ops || historicalSearchOps;
+              break;
+            } else if (type === "error") {
+              throw new Error(chunkData.error || "Unknown error");
+            }
+          } catch (e) {
+            console.error("Error parsing SSE data:", e, line);
+          }
+        }
+      }
+    }
+
+    // Remove typing cursor
+    msgElement.classList.remove("typing");
+
+    // Update message with final content and metadata
+    addMessage({
+      role: "assistant",
+      text: fullContent,
+      sources,
+      queryType,
+      searchCount,
+      historicalSearchOps,
+      updateBubble: thinkingBubble,
+      useTypewriter: false, // Already displayed via streaming
+    });
+
+    // Keep the last 3 Q&A pairs (6 messages) for context
+    queryContext.push(`用户: ${userText}`, `助手: ${fullContent}`);
+    if (queryContext.length > 6) {
+      queryContext = queryContext.slice(-6);
+    }
+    setStatus("Done");
+  } catch (e) {
+    msgElement.classList.remove("typing");
+    throw e;
+  }
+}
+
+async function handleNonStreamingResponse(url, headers, controller, thinkingBubble, userText) {
+  const res = await fetch(url, {
+    method: "GET",
+    signal: controller.signal,
+    headers: headers,
+  });
+
+  const retryAfterHeader = res.headers.get("Retry-After");
+  const raw = await res.text();
+  let data = null;
+  try {
+    data = raw ? JSON.parse(raw) : null;
+  } catch {
+    data = null;
+  }
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      const tokenInfo = headers.Authorization ? "Token is present but invalid" : "No token provided";
+      throw new Error(`Unauthorized (401). ${tokenInfo}. Check API_AUTH_TOKEN environment variable on backend or include token in URL parameter: ?token=xxx`);
+    }
+    if (res.status === 429) {
+      const retryAfter = Number(retryAfterHeader || "");
+      if (Number.isFinite(retryAfter) && retryAfter > 0) {
+        startRateLimitCountdown(retryAfter);
+        throw new Error(`Rate limit exceeded (429). Retry after ${retryAfter}s.`);
+      }
+      throw new Error("Rate limit exceeded (429). Please retry later.");
+    }
+    const detail = data?.detail || raw || `HTTP ${res.status}`;
+    throw new Error(detail);
+  }
+
+  const content = data?.content ?? "";
+  const sources = Array.isArray(data?.search_results) ? data.search_results : [];
+  const queryType = data?.query_type ?? null;
+  const searchCount = data?.search_count ?? null;
+  const historicalSearchOps = Array.isArray(data?.historical_search_ops) ? data.historical_search_ops : null;
+  
+  addMessage({ 
+    role: "assistant", 
+    text: content, 
+    sources, 
+    queryType, 
+    searchCount, 
+    historicalSearchOps, 
+    updateBubble: thinkingBubble,
+    useTypewriter: true 
+  });
+  
+  // Keep the last 3 Q&A pairs (6 messages) for context
+  queryContext.push(`用户: ${userText}`, `助手: ${content}`);
+  // Keep only the last 6 messages (3 rounds of Q&A)
+  if (queryContext.length > 6) {
+    queryContext = queryContext.slice(-6);
+  }
+  setStatus("Done");
 }
 
 // Wire up UI
