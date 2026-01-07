@@ -35,13 +35,15 @@ Open `scripts/playground.ipynb` to:
 - Test title search and chunk search
 - Experiment with the two-step search system
 
-### RAG Chatbot
+### Traditional RAG Chatbot
 The RAG system uses:
 - **Two-step retrieval**: First searches document titles/summaries, then retrieves relevant chunks
 - **Multi-model LLM**: Uses LiteLLM with fallback support (GPT-4o-mini, Gemini 2.0 Flash)
 - **Async processing**: Supports asynchronous API calls for better performance
 
 For detailed technical documentation about the RAG algorithm, workflow, document expansion techniques, and design decisions, see [docs/README_RAG.md](docs/README_RAG.md).
+
+### Agentic RAG
 
 The project also includes an **Agentic RAG Pipeline** built with LangGraph that intelligently routes queries through different processing paths with iterative answer refinement. For detailed documentation about the agentic workflow, nodes, routing functions, and state management, see [docs/README_AGENTIC.md](docs/README_AGENTIC.md).
 

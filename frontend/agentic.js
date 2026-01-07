@@ -22,7 +22,46 @@ function nowTime() {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function addMessage({ role, text, sources = null, prompt = null, querys = null, queryType = null, searchCount = null, historicalSearchOps = null, thinking = false, updateBubble = null }) {
+// Typewriter effect function
+async function typewriterEffect(element, text, speed = 20) {
+  element.textContent = "";
+  element.classList.add("typing");
+  
+  for (let i = 0; i < text.length; i++) {
+    element.textContent += text[i];
+    // Scroll to bottom as content is typed
+    messages.scrollTop = messages.scrollHeight;
+    await new Promise(resolve => setTimeout(resolve, speed));
+  }
+  
+  element.classList.remove("typing");
+}
+
+// Copy text to clipboard
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    // Fallback for older browsers
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return true;
+    } catch (e) {
+      document.body.removeChild(textArea);
+      return false;
+    }
+  }
+}
+
+function addMessage({ role, text, sources = null, prompt = null, querys = null, queryType = null, searchCount = null, historicalSearchOps = null, thinking = false, updateBubble = null, useTypewriter = true }) {
   // If updateBubble is provided, update existing message instead of creating new one
   if (updateBubble) {
     const pre = updateBubble.querySelector(".msg");
@@ -30,17 +69,50 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
       if (thinking) {
         pre.innerHTML = '<span class="thinking">Thinking</span>';
       } else {
-        pre.textContent = text || "";
+        // Remove typing class if present
+        pre.classList.remove("typing");
+        if (useTypewriter && text) {
+          typewriterEffect(pre, text);
+        } else {
+          pre.textContent = text || "";
+        }
       }
     }
 
+    // Remove existing progress indicator if any
+    const existingProgress = updateBubble.querySelectorAll(".progressIndicator");
+    existingProgress.forEach(p => p.remove());
+    
     // Remove all existing details
     const existingDetails = updateBubble.querySelectorAll("details");
     existingDetails.forEach(d => d.remove());
 
-    // Add all details for assistant messages (collapsed by default)
-    if (role === "assistant") {
-      if (sources && Array.isArray(sources) && sources.length > 0) {
+      // Add progress indicator for agentic workflow
+      if (role === "assistant" && (sources || searchCount !== null)) {
+        const progressDiv = document.createElement("div");
+        progressDiv.className = "progressIndicator fadeIn";
+        let progressText = "";
+        if (searchCount !== null) {
+          progressText = `Search iteration: ${searchCount}`;
+        }
+        if (sources && Array.isArray(sources) && sources.length > 0) {
+          progressText += progressText ? ` | Found ${sources.length} source${sources.length !== 1 ? 's' : ''}` : `Found ${sources.length} source${sources.length !== 1 ? 's' : ''}`;
+        }
+        if (queryType) {
+          progressText += progressText ? ` | Type: ${queryType}` : `Type: ${queryType}`;
+        }
+        if (progressText) {
+          progressDiv.innerHTML = `
+            <div class="progressDot"></div>
+            <span class="progressText">${progressText}</span>
+          `;
+          updateBubble.appendChild(progressDiv);
+        }
+      }
+      
+      // Add all details for assistant messages (collapsed by default)
+      if (role === "assistant") {
+        if (sources && Array.isArray(sources) && sources.length > 0) {
         const details = document.createElement("details");
         details.open = !!showSources.checked;
 
@@ -141,19 +213,134 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
 
   const meta = document.createElement("div");
   meta.className = "meta";
-  meta.innerHTML = `<span>${role === "user" ? "You" : "Assistant"}</span><span>${nowTime()}</span>`;
+  
+  const metaLeft = document.createElement("span");
+  metaLeft.textContent = role === "user" ? "You" : "Assistant";
+  
+  const metaRight = document.createElement("span");
+  metaRight.textContent = nowTime();
+  
+  // Add message action buttons
+  const messageActions = document.createElement("div");
+  messageActions.className = "messageActions";
+  
+  if (role === "user" && !thinking) {
+    const editBtn = document.createElement("button");
+    editBtn.className = "messageActionBtn";
+    editBtn.innerHTML = "✏️ Edit";
+    editBtn.title = "Edit message";
+    editBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      // Put text back into input
+      userInput.value = text || "";
+      userInput.focus();
+      // Remove this message and all following messages
+      const allBubbles = Array.from(messages.children);
+      const currentIndex = allBubbles.indexOf(bubble);
+      for (let i = currentIndex + 1; i < allBubbles.length; i++) {
+        allBubbles[i].remove();
+      }
+      // Update query context
+      const removedCount = allBubbles.length - currentIndex - 1;
+      queryContext = queryContext.slice(0, -removedCount * 2);
+    });
+    messageActions.appendChild(editBtn);
+  }
+  
+  if (role === "assistant" && !thinking) {
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "messageActionBtn";
+    copyBtn.innerHTML = "📋 Copy";
+    copyBtn.title = "Copy message";
+    copyBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const success = await copyToClipboard(text || "");
+      if (success) {
+        copyBtn.innerHTML = "✓ Copied";
+        copyBtn.classList.add("success");
+        setTimeout(() => {
+          copyBtn.innerHTML = "📋 Copy";
+          copyBtn.classList.remove("success");
+        }, 2000);
+      }
+    });
+    
+    const regenerateBtn = document.createElement("button");
+    regenerateBtn.className = "messageActionBtn";
+    regenerateBtn.innerHTML = "🔄 Regenerate";
+    regenerateBtn.title = "Regenerate response";
+    regenerateBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      // Find the previous user message
+      const allBubbles = Array.from(messages.children);
+      const currentIndex = allBubbles.indexOf(bubble);
+      for (let i = currentIndex - 1; i >= 0; i--) {
+        if (allBubbles[i].classList.contains("user")) {
+          const userText = allBubbles[i].querySelector(".msg")?.textContent || "";
+          if (userText) {
+            // Remove this assistant message and all messages after it
+            for (let j = currentIndex; j < allBubbles.length; j++) {
+              allBubbles[j].remove();
+            }
+            // Update query context
+            const removedCount = allBubbles.length - currentIndex;
+            queryContext = queryContext.slice(0, -removedCount * 2);
+            // Set user input and send
+            userInput.value = userText;
+            sendMessage();
+            break;
+          }
+        }
+      }
+    });
+    
+    messageActions.appendChild(copyBtn);
+    messageActions.appendChild(regenerateBtn);
+  }
+  
+  meta.appendChild(metaLeft);
+  meta.appendChild(messageActions);
+  meta.appendChild(metaRight);
 
   const pre = document.createElement("pre");
   pre.className = "msg";
   if (thinking) {
     pre.innerHTML = '<span class="thinking">Thinking</span>';
   } else {
-    pre.textContent = text || "";
+    if (useTypewriter && text && role === "assistant") {
+      // Start typewriter effect
+      typewriterEffect(pre, text);
+    } else {
+      pre.textContent = text || "";
+    }
   }
 
   bubble.appendChild(meta);
   bubble.appendChild(pre);
 
+  // Add progress indicator for agentic workflow
+  if (role === "assistant" && (sources || searchCount !== null)) {
+    const progressDiv = document.createElement("div");
+    progressDiv.className = "progressIndicator fadeIn";
+    let progressText = "";
+    if (searchCount !== null) {
+      progressText = `Search iteration: ${searchCount}`;
+    }
+    if (sources && Array.isArray(sources) && sources.length > 0) {
+      progressText += progressText ? ` | Found ${sources.length} source${sources.length !== 1 ? 's' : ''}` : `Found ${sources.length} source${sources.length !== 1 ? 's' : ''}`;
+    }
+    if (queryType) {
+      progressText += progressText ? ` | Type: ${queryType}` : `Type: ${queryType}`;
+    }
+    if (progressText) {
+      progressDiv.innerHTML = `
+        <div class="progressDot"></div>
+        <span class="progressText">${progressText}</span>
+      `;
+      bubble.appendChild(progressDiv);
+    }
+  }
+  
   if (role === "assistant" && sources && Array.isArray(sources) && sources.length > 0) {
     const details = document.createElement("details");
     details.open = !!showSources.checked;
@@ -483,8 +670,17 @@ async function sendMessage() {
   cancelBtn.disabled = false;
   setStatus("Requesting…");
 
-  // Add thinking indicator for assistant
+  // Add thinking indicator for assistant with enhanced status
   const thinkingBubble = addMessage({ role: "assistant", thinking: true });
+  
+  // Add status indicator to thinking bubble
+  const statusIndicator = document.createElement("div");
+  statusIndicator.className = "progressIndicator";
+  statusIndicator.innerHTML = `
+    <div class="progressDot"></div>
+    <span class="progressText">Processing with Agentic RAG workflow...</span>
+  `;
+  thinkingBubble.appendChild(statusIndicator);
 
   try {
     // Get fresh token in case it was just fetched
@@ -540,7 +736,18 @@ async function sendMessage() {
     const queryType = data?.query_type ?? null;
     const searchCount = data?.search_count ?? null;
     const historicalSearchOps = Array.isArray(data?.historical_search_ops) ? data.historical_search_ops : null;
-    addMessage({ role: "assistant", text: content, sources, prompt, querys, queryType, searchCount, historicalSearchOps, updateBubble: thinkingBubble });
+    addMessage({ 
+      role: "assistant", 
+      text: content, 
+      sources, 
+      prompt, 
+      querys, 
+      queryType, 
+      searchCount, 
+      historicalSearchOps, 
+      updateBubble: thinkingBubble,
+      useTypewriter: true 
+    });
     // Keep the last 3 Q&A pairs (6 messages) for context
     queryContext.push(`用户: ${text}`, `助手: ${content}`);
     // Keep only the last 6 messages (3 rounds of Q&A)

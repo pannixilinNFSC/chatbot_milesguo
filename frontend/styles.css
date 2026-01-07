@@ -138,6 +138,13 @@ input[type="number"]:focus,
 textarea:focus {
   border-color: rgba(122, 162, 255, 0.6);
   box-shadow: 0 0 0 3px rgba(122, 162, 255, 0.15);
+  background: rgba(15, 23, 48, 0.8);
+}
+
+input[type="text"]:hover,
+input[type="number"]:hover,
+textarea:hover {
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 textarea {
@@ -199,6 +206,18 @@ button {
   border-radius: 10px;
   padding: 10px 12px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 button.primary {
@@ -206,9 +225,16 @@ button.primary {
   border-color: rgba(122, 162, 255, 0.35);
 }
 
+button.primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(122, 162, 255, 0.48), rgba(122, 162, 255, 0.30));
+  border-color: rgba(122, 162, 255, 0.45);
+  box-shadow: 0 4px 12px rgba(122, 162, 255, 0.25);
+}
+
 button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+  transform: none;
 }
 
 .pill {
@@ -259,6 +285,20 @@ button:disabled {
   border-radius: 14px;
   padding: 10px 12px;
   background: rgba(16, 26, 51, 0.60);
+  position: relative;
+  transition: all 0.2s ease;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .bubble.user {
@@ -267,9 +307,23 @@ button:disabled {
   border-color: rgba(122, 162, 255, 0.22);
 }
 
+.bubble.user:hover {
+  border-color: rgba(122, 162, 255, 0.35);
+  box-shadow: 0 2px 8px rgba(122, 162, 255, 0.15);
+}
+
 .bubble.assistant {
   align-self: flex-start;
   background: rgba(255, 255, 255, 0.03);
+}
+
+.bubble.assistant:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.bubble:hover .messageActions {
+  opacity: 1;
 }
 
 .meta {
@@ -278,13 +332,66 @@ button:disabled {
   margin-bottom: 6px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 10px;
+}
+
+.messageActions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.messageActionBtn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.messageActionBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+
+.messageActionBtn:active {
+  transform: scale(0.95);
+}
+
+.messageActionBtn.success {
+  color: #4ade80;
 }
 
 .msg {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
+  position: relative;
+}
+
+.msg.typing {
+  position: relative;
+}
+
+.msg.typing::after {
+  content: '▊';
+  display: inline-block;
+  color: var(--accent);
+  animation: blink 1s infinite;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
 }
 
 details {
@@ -356,5 +463,80 @@ summary {
   0%, 20% { content: "."; }
   40% { content: ".."; }
   60%, 100% { content: "..."; }
+}
+
+.progressIndicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(15, 23, 48, 0.45);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.progressDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+.progressText {
+  flex: 1;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(122, 162, 255, 0.15);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.fadeIn {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.copySuccess {
+  animation: copySuccess 0.5s ease;
+}
+
+@keyframes copySuccess {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+    color: #4ade80;
+  }
 }
 

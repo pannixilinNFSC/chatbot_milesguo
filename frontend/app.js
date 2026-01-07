@@ -22,7 +22,46 @@ function nowTime() {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function addMessage({ role, text, sources = null, prompt = null, querys = null, thinking = false, updateBubble = null }) {
+// Typewriter effect function
+async function typewriterEffect(element, text, speed = 20) {
+  element.textContent = "";
+  element.classList.add("typing");
+  
+  for (let i = 0; i < text.length; i++) {
+    element.textContent += text[i];
+    // Scroll to bottom as content is typed
+    messages.scrollTop = messages.scrollHeight;
+    await new Promise(resolve => setTimeout(resolve, speed));
+  }
+  
+  element.classList.remove("typing");
+}
+
+// Copy text to clipboard
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    // Fallback for older browsers
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return true;
+    } catch (e) {
+      document.body.removeChild(textArea);
+      return false;
+    }
+  }
+}
+
+function addMessage({ role, text, sources = null, prompt = null, querys = null, thinking = false, updateBubble = null, useTypewriter = true }) {
   // If updateBubble is provided, update existing message instead of creating new one
   if (updateBubble) {
     const pre = updateBubble.querySelector(".msg");
@@ -30,57 +69,76 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
       if (thinking) {
         pre.innerHTML = '<span class="thinking">Thinking</span>';
       } else {
-        pre.textContent = text || "";
+        // Remove typing class if present
+        pre.classList.remove("typing");
+        if (useTypewriter && text) {
+          typewriterEffect(pre, text);
+        } else {
+          pre.textContent = text || "";
+        }
       }
     }
 
+    // Remove existing progress indicator if any
+    const existingProgress = updateBubble.querySelectorAll(".progressIndicator");
+    existingProgress.forEach(p => p.remove());
+    
     // Remove existing sources if any
-    const existingDetails = updateBubble.querySelector("details");
-    if (existingDetails) {
-      existingDetails.remove();
-    }
+    const existingDetails = updateBubble.querySelectorAll("details");
+    existingDetails.forEach(d => d.remove());
 
     // Add new sources if provided
-    if (role === "assistant" && sources && Array.isArray(sources) && sources.length > 0) {
-      const details = document.createElement("details");
-      details.open = !!showSources.checked;
-
-      const summary = document.createElement("summary");
-      summary.textContent = `Sources (${sources.length})`;
-      details.appendChild(summary);
-
-      const list = document.createElement("div");
-      list.className = "sources";
-
-      for (const s of sources) {
-        const item = document.createElement("div");
-        item.className = "sourceItem";
-
-        const title = document.createElement("p");
-        title.className = "sourceTitle";
-        title.textContent = s.doc_title || "(untitled)";
-
-        const metaP = document.createElement("p");
-        metaP.className = "sourceMeta";
-        const index = s.index ?? "";
-        const chunkId = s.chunk_id ?? "";
-        const docId = s.doc_id ?? "";
-        const score = s.score != null ? Number(s.score).toFixed(4) : "";
-        metaP.textContent = `#${index}   doc_id: ${docId}   chunk_id: ${chunkId}   score: ${score}`;
-
-        const textP = document.createElement("p");
-        textP.className = "sourceText";
-        textP.textContent = s.text || "";
-
-        item.appendChild(title);
-        item.appendChild(metaP);
-        item.appendChild(textP);
-        list.appendChild(item);
+      // Add progress indicator after message update
+      if (role === "assistant" && sources && Array.isArray(sources) && sources.length > 0) {
+        const progressDiv = document.createElement("div");
+        progressDiv.className = "progressIndicator fadeIn";
+        progressDiv.innerHTML = `
+          <div class="progressDot"></div>
+          <span class="progressText">Found ${sources.length} source${sources.length !== 1 ? 's' : ''}</span>
+        `;
+        updateBubble.appendChild(progressDiv);
       }
+      
+      if (role === "assistant" && sources && Array.isArray(sources) && sources.length > 0) {
+        const details = document.createElement("details");
+        details.open = !!showSources.checked;
 
-      details.appendChild(list);
-      updateBubble.appendChild(details);
-    }
+        const summary = document.createElement("summary");
+        summary.textContent = `Sources (${sources.length})`;
+        details.appendChild(summary);
+
+        const list = document.createElement("div");
+        list.className = "sources";
+
+        for (const s of sources) {
+          const item = document.createElement("div");
+          item.className = "sourceItem";
+
+          const title = document.createElement("p");
+          title.className = "sourceTitle";
+          title.textContent = s.doc_title || "(untitled)";
+
+          const metaP = document.createElement("p");
+          metaP.className = "sourceMeta";
+          const index = s.index ?? "";
+          const chunkId = s.chunk_id ?? "";
+          const docId = s.doc_id ?? "";
+          const score = s.score != null ? Number(s.score).toFixed(4) : "";
+          metaP.textContent = `#${index}   doc_id: ${docId}   chunk_id: ${chunkId}   score: ${score}`;
+
+          const textP = document.createElement("p");
+          textP.className = "sourceText";
+          textP.textContent = s.text || "";
+
+          item.appendChild(title);
+          item.appendChild(metaP);
+          item.appendChild(textP);
+          list.appendChild(item);
+        }
+
+        details.appendChild(list);
+        updateBubble.appendChild(details);
+      }
 
     messages.scrollTop = messages.scrollHeight;
     return updateBubble;
@@ -91,14 +149,106 @@ function addMessage({ role, text, sources = null, prompt = null, querys = null, 
 
   const meta = document.createElement("div");
   meta.className = "meta";
-  meta.innerHTML = `<span>${role === "user" ? "You" : "Assistant"}</span><span>${nowTime()}</span>`;
+  
+  const metaLeft = document.createElement("span");
+  metaLeft.textContent = role === "user" ? "You" : "Assistant";
+  
+  const metaRight = document.createElement("span");
+  metaRight.textContent = nowTime();
+  
+  // Add message action buttons
+  const messageActions = document.createElement("div");
+  messageActions.className = "messageActions";
+  
+  if (role === "user" && !thinking) {
+    const editBtn = document.createElement("button");
+    editBtn.className = "messageActionBtn";
+    editBtn.innerHTML = "✏️ Edit";
+    editBtn.title = "Edit message";
+    editBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      // Put text back into input
+      userInput.value = text || "";
+      userInput.focus();
+      // Remove this message and all following messages
+      const allBubbles = Array.from(messages.children);
+      const currentIndex = allBubbles.indexOf(bubble);
+      for (let i = currentIndex + 1; i < allBubbles.length; i++) {
+        allBubbles[i].remove();
+      }
+      // Update query context
+      const removedCount = allBubbles.length - currentIndex - 1;
+      queryContext = queryContext.slice(0, -removedCount * 2);
+    });
+    messageActions.appendChild(editBtn);
+  }
+  
+  if (role === "assistant" && !thinking) {
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "messageActionBtn";
+    copyBtn.innerHTML = "📋 Copy";
+    copyBtn.title = "Copy message";
+    copyBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const success = await copyToClipboard(text || "");
+      if (success) {
+        copyBtn.innerHTML = "✓ Copied";
+        copyBtn.classList.add("success");
+        setTimeout(() => {
+          copyBtn.innerHTML = "📋 Copy";
+          copyBtn.classList.remove("success");
+        }, 2000);
+      }
+    });
+    
+    const regenerateBtn = document.createElement("button");
+    regenerateBtn.className = "messageActionBtn";
+    regenerateBtn.innerHTML = "🔄 Regenerate";
+    regenerateBtn.title = "Regenerate response";
+    regenerateBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      // Find the previous user message
+      const allBubbles = Array.from(messages.children);
+      const currentIndex = allBubbles.indexOf(bubble);
+      for (let i = currentIndex - 1; i >= 0; i--) {
+        if (allBubbles[i].classList.contains("user")) {
+          const userText = allBubbles[i].querySelector(".msg")?.textContent || "";
+          if (userText) {
+            // Remove this assistant message and all messages after it
+            for (let j = currentIndex; j < allBubbles.length; j++) {
+              allBubbles[j].remove();
+            }
+            // Update query context
+            const removedCount = allBubbles.length - currentIndex;
+            queryContext = queryContext.slice(0, -removedCount * 2);
+            // Set user input and send
+            userInput.value = userText;
+            sendMessage();
+            break;
+          }
+        }
+      }
+    });
+    
+    messageActions.appendChild(copyBtn);
+    messageActions.appendChild(regenerateBtn);
+  }
+  
+  meta.appendChild(metaLeft);
+  meta.appendChild(messageActions);
+  meta.appendChild(metaRight);
 
   const pre = document.createElement("pre");
   pre.className = "msg";
   if (thinking) {
     pre.innerHTML = '<span class="thinking">Thinking</span>';
   } else {
-    pre.textContent = text || "";
+    if (useTypewriter && text && role === "assistant") {
+      // Start typewriter effect
+      typewriterEffect(pre, text);
+    } else {
+      pre.textContent = text || "";
+    }
   }
 
   bubble.appendChild(meta);
@@ -393,8 +543,17 @@ async function sendMessage() {
   cancelBtn.disabled = false;
   setStatus("Requesting…");
 
-  // Add thinking indicator for assistant
+  // Add thinking indicator for assistant with enhanced status
   const thinkingBubble = addMessage({ role: "assistant", thinking: true });
+  
+  // Add status indicator to thinking bubble
+  const statusIndicator = document.createElement("div");
+  statusIndicator.className = "progressIndicator";
+  statusIndicator.innerHTML = `
+    <div class="progressDot"></div>
+    <span class="progressText">Searching knowledge base...</span>
+  `;
+  thinkingBubble.appendChild(statusIndicator);
 
   try {
     // Get fresh token in case it was just fetched
@@ -447,7 +606,17 @@ async function sendMessage() {
     const sources = Array.isArray(data?.search_results) ? data.search_results : [];
     const prompt = data?.prompt ?? null;
     const querys = Array.isArray(data?.querys) ? data.querys : null;
-    addMessage({ role: "assistant", text: content, sources, prompt, querys, updateBubble: thinkingBubble });
+    
+    addMessage({ 
+      role: "assistant", 
+      text: content, 
+      sources, 
+      prompt, 
+      querys, 
+      updateBubble: thinkingBubble,
+      useTypewriter: true 
+    });
+    
     // Keep the last 3 Q&A pairs (6 messages) for context
     queryContext.push(`用户: ${text}`, `助手: ${content}`);
     // Keep only the last 6 messages (3 rounds of Q&A)
